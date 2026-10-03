@@ -1,0 +1,163 @@
+/* ==========================================================================
+   SYNTHÉ 1 — lower-third institutionnel / JT (template_synthe1.html)
+   Famille 1 — compagnon de Titre 1
+   Namespace isolé : .ts-s1-*
+   Aucune classe partagée avec talkshow.css / Titre 1
+   ========================================================================== */
+
+/* --- Conteneur positionneur ------------------------------------------------ */
+.ts-s1 {
+    position: absolute;
+    top: auto;
+    bottom: var(--ts-s1-pos-y, 120px);   /* SOLO par défaut */
+    right: var(--ts-s1-pos-x, 100px);
+    left: auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    z-index: 9;
+    pointer-events: none;
+    opacity: 0;   /* Invisible jusqu'au déclenchement WAAPI */
+}
+
+/* --- Mode COMBINÉ (Titre 1 actif) ----------------------------------------- */
+.ts-s1.layout-with-titre1 {
+    bottom: var(--ts-s1-pos-y-combined, 291px);
+}
+
+/* --- Wrapper animé (parent WAAPI) ----------------------------------------- */
+.ts-s1-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: fit-content;
+    min-width: var(--ts-s1-min-width, 360px);
+    max-width: var(--ts-s1-max-width, 700px);
+}
+
+/* --- Bloc NOM (bande haute, miroir .ts-titleband-top) ---------------------- */
+.ts-s1-name-band {
+    position: relative;
+    height: var(--ts-s1-name-h, 88px);      /* Miroir exact de Titre 1 top band */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;   /* RTL : ancré à droite */
+    padding: 0 var(--ts-s1-padding-x, 32px);
+    overflow: hidden;
+}
+
+.ts-s1-name-band::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ts-s1-bg-name, #182855);
+    opacity: calc(var(--ts-s1-bg-name-alpha, 85) / 100);
+    z-index: 0;
+}
+
+/* --- Séparateur (miroir .ts-titleband-separator) --------------------------- */
+.ts-s1-separator {
+    position: relative;
+    height: var(--ts-s1-sep-h, 1px);
+    background: var(--ts-s1-sep-color, #FFFFFF);
+    opacity: var(--ts-s1-sep-opacity, 0.3);
+    z-index: 2;
+}
+
+/* --- Bloc FONCTION (bande basse, miroir .ts-titleband-bottom) -------------- */
+.ts-s1-role-band {
+    position: relative;
+    height: var(--ts-s1-role-h, 56px);      /* Légèrement plus grand que 48px */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;   /* RTL : ancré à droite */
+    padding: 0 var(--ts-s1-padding-x, 32px);
+    overflow: hidden;
+}
+
+.ts-s1-role-band::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ts-s1-bg-role, #0C142A);
+    opacity: calc(var(--ts-s1-bg-role-alpha, 85) / 100);
+    z-index: 0;
+}
+
+/* --- Overlay de profondeur global (miroir ::after de titleband) ------------ */
+.ts-s1-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.15) 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* --- Texte NOM ------------------------------------------------------------- */
+.ts-s1-name {
+    position: relative;
+    z-index: 2;
+    font-family: 'Kufi', 'IBMPlexArabic', sans-serif;
+    font-weight: var(--ts-s1-name-weight, 700);
+    font-size: var(--ts-s1-name-size, 46px);
+    line-height: 1.3;              /* Arabe : 1.3 donne de l'air aux glyphes */
+    padding-bottom: 0.1em;         /* Ajustement optique vertical Kufi */
+    color: var(--ts-s1-name-color, #FFFFFF);
+    font-synthesis: none;
+    white-space: nowrap;
+    text-align: right;
+    direction: rtl;
+    letter-spacing: 0;   /* Jamais de letter-spacing sur l'arabe */
+    text-shadow:
+        0 1px calc(var(--ts-s1-wash-radius, 6px) * 0.33)
+            rgba(0, 0, 0, calc(var(--ts-s1-wash-intensity, 20) * 0.0070)),
+        0 2px var(--ts-s1-wash-radius, 6px)
+            rgba(0, 0, 0, calc(var(--ts-s1-wash-intensity, 20) * 0.0032)),
+        0 0   calc(var(--ts-s1-wash-radius, 6px) * 2.33)
+            rgba(0, 0, 0, calc(var(--ts-s1-wash-intensity, 20) * 0.0016));
+}
+
+/* --- Texte FONCTION -------------------------------------------------------- */
+.ts-s1-role {
+    position: relative;
+    z-index: 2;
+    font-family: 'IBMPlexArabic', 'Kufi', sans-serif;
+    font-weight: var(--ts-s1-role-weight, 600);
+    font-size: var(--ts-s1-role-size, 32px);
+    line-height: 1.25;             /* Arabe : 1.25 pour le secondaire */
+    padding-bottom: 0.12em;        /* Centrage vertical optique IBMPlexArabic */
+    color: var(--ts-s1-role-color, #FFFFFF);
+    font-synthesis: none;
+    white-space: nowrap;
+    text-align: right;
+    direction: rtl;
+    letter-spacing: 0;
+    text-shadow:
+        0 1px calc(var(--ts-s1-wash-radius, 6px) * 0.33)
+            rgba(0, 0, 0, calc(var(--ts-s1-wash-intensity, 20) * 0.0045)),
+        0 2px var(--ts-s1-wash-radius, 6px)
+            rgba(0, 0, 0, calc(var(--ts-s1-wash-intensity, 20) * 0.0020));
+}
+
+/* --- Reveal interne discret (optionnel, sobre, par bloc complet) ----------- */
+/* Déclenché seulement si le parent .ts-s1 reçoit la classe .ts-s1-reveal     */
+.ts-s1.ts-s1-reveal .ts-s1-name {
+    animation: tsS1TextReveal 500ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+}
+
+.ts-s1.ts-s1-reveal .ts-s1-role {
+    animation: tsS1TextReveal 500ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
+}
+
+@keyframes tsS1TextReveal {
+    from {
+        opacity: 0.15;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

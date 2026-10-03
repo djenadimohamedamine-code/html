@@ -489,56 +489,45 @@ footer b { color: var(--pop-yellow); }
    CONFIGURATION DES ONGLETS (champs de contenu)
    ========================================================================= */
 const TPLS = {
-    invite:     { label: "Invite", fields: [
-        { k: "nom",      l: "Nom (arabe)",       max: 24, dir: "rtl" },
-        { k: "role",     l: "Rôle (arabe)",      max: 40, dir: "rtl" },
-        { k: "badge_ar", l: "Badge arabe",       max: 10, dir: "rtl" },
-        { k: "badge_la", l: "Badge latin",       max: 12, dir: "ltr" },
-    ]},
-    nom:        { label: "Nom", fields: [
-        { k: "nom",  l: "Nom (arabe)",  max: 24, dir: "rtl" },
-        { k: "role", l: "Rôle (arabe)", max: 40, dir: "rtl" },
-    ]},
-    titre:      { label: "Titre", fields: [
+    titre: { label: "Titre 1", fields: [
         { k: "title_main", l: "Texte principal (arabe)", max: 80, dir: "rtl" },
         { k: "title_sub",  l: "Texte secondaire (arabe)", max: 50, dir: "rtl" },
     ]},
-    bug:        { label: "Bug", fields: [
-        { k: "texte", l: "Texte du logo / émission", max: 30, dir: "ltr" },
+    synthe1: { label: "Synthé 1", fields: [
+        { k: "s1_name", l: "Nom (arabe)", max: 40, dir: "rtl" },
+        { k: "s1_role", l: "Fonction (arabe)", max: 60, dir: "rtl" },
     ]},
-    fullscreen: { label: "Fullscreen", fields: [
-        { k: "tab",   l: "Onglet de section (arabe)", max: 20, dir: "rtl" },
-        { k: "lead",  l: "Titre de contenu (arabe)",  max: 70, dir: "rtl" },
-        { k: "textes", l: "Paragraphe(s) <span class='hint'>— 1 ligne = 1 paragraphe, 3 max</span>",
-          max: 720, dir: "rtl", type: "textarea" },
+    titre2: { label: "Titre 2", fields: [
+        { k: "title2_text", l: "Texte du titre (arabe)", max: 90, dir: "rtl" },
+    ]},
+    synthe2: { label: "Synthé 2", fields: [
+        { k: "s2_name", l: "Nom (arabe)", max: 40, dir: "rtl" },
+        { k: "s2_role", l: "Fonction (arabe)", max: 60, dir: "rtl" },
+        { k: "s2_layout", l: "UTILISATION", type: "radio", options: [
+            {val: "solo", label: "SOLO (Position bas)"},
+            {val: "with_titre2", label: "AVEC TITRE 2 (Position haute combinée)"}
+        ]}
     ]},
     generique: { label: "Générique", fields: [
-        { k: "credits", l: "Générique <span class='hint'>— « # » = catégorie, sinon nom · lignes vides ignorées · lignes illimitées</span>",
-          max: 6000, dir: "ltr", type: "textarea", rows: 12, lines: 0 },
+        { k: "credits", l: "Générique (# = catégorie)", max: 6000, dir: "ltr", type: "textarea", rows: 12, lines: 0 },
+    ]},
+    bug: { label: "Bug", fields: [
+        { k: "texte", l: "Texte du logo", max: 30, dir: "ltr" },
     ]},
 };
 
 const DEFAULTS = {
-    invite: { nom: "محمد أمين", role: "مقدّم البرنامج و مخرج TV", badge_ar: "ضيف", badge_la: "INVITÉ" },
-    nom:    { nom: "محمد أمين", role: "مقدّم البرنامج و مخرج TV" },
-    titre:  { title_main: "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟", title_sub: "موضوع النقاش" },
-    bug:    { texte: "TALKSHOW" },
-    fullscreen: {
-        tab: "ملخص النقاش",
-        lead: "أبرز المواضيع التي تناولتها الحلقة",
-        textes: [
-            "تركّز النقاش على الوضع الاقتصادي الحالي وتأثيره على القدرة الشرائية للأسر التونسية، فضلاً عن ملفّ الشباب والبطالة وسبل خلق فرص عمل جديدة، مع محاولة تقديم مقترحات عملية قابلة للتطبيق في المرحلة المقبلة.",
-            "كما خُصّصت فقرة لتحليل الوعود الانتخابية التي تقدّمها الأحزاب ولقياس مدى مطابقتها لواقع المواطن اليوم.",
-        ].join("\n"),
-    },
+    titre: { title_main: "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟", title_sub: "موضوع النقاش" },
+    synthe1: { s1_name: "محمد أمين", s1_role: "مقدم البرنامج",  },
+    titre2: { title2_text: "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟" },
+    synthe2: { s2_name: "محمد أمين", s2_role: "محلل سياسي", s2_layout: "solo" },
+    bug: { texte: "TALKSHOW" },
     generique: {
-        // meme contenu que DEFAULTS["generique"] de render_talkshow.py
         credits: [
-            "# RÉALISATION", "Mohamed Amine Djenadi", "Ahmed", "Karim",
-            "# CAMÉRAS", "Ali", "Samir", "Nadir",
-            "# RÉGIE", "Sofiane", "Yacine",
-        ].join("\n"),
-    },
+            "# تقديم", "محمد أمين", "", "# إعداد", "كريم بن مسعود", "ليلى خليل", "", "# إخراج", "سمير جابر"
+        ].join("
+")
+    }
 };
 
 /* =========================================================================
@@ -561,7 +550,11 @@ const LS_VIS_KEY = "talkshow_visual_params";   // NOUVELLE cle : tailles/opacite
 let savedContent = {};
 function initContent() {
     try {
-        localStorage.removeItem("talkshow_content_custom"); // FORCE CLEAR TO FIX CORRUPTION
+        if (!localStorage.getItem("ts_migrated_v3")) {
+            localStorage.removeItem("talkshow_palette_custom");
+            localStorage.removeItem("talkshow_visual_params");
+            localStorage.setItem("ts_migrated_v3", "1");
+        }
         const raw = localStorage.getItem("talkshow_content_custom");
         if (raw) savedContent = JSON.parse(raw) || {};
     } catch(e) {}
@@ -779,19 +772,49 @@ function syncColor(id) {
 function buildTabs() {
     const tabsEl = document.getElementById("tabs");
     tabsEl.innerHTML = "";
-    for (const key of Object.keys(TPLS)) {
-        const b = document.createElement("button");
-        b.innerHTML = "<span>" + TPLS[key].label + "</span>";
-        b.dataset.tpl = key;
-        b.onclick = () => selectTab(key);
-        tabsEl.appendChild(b);
+    tabsEl.style.display = "flex";
+    tabsEl.style.flexDirection = "column";
+    tabsEl.style.gap = "15px";
+    tabsEl.style.padding = "14px 28px";
+    
+    const groups = [
+        { title: "FAMILLE 1", keys: ["titre", "synthe1"] },
+        { title: "FAMILLE 2", keys: ["titre2", "synthe2"] },
+        { title: "AUTRES", keys: ["generique", "bug"] }
+    ];
+    
+    for (const g of groups) {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.alignItems = "center";
+        row.style.gap = "10px";
+        
+        const label = document.createElement("span");
+        label.innerText = g.title;
+        label.style.color = "var(--pop-cyan)";
+        label.style.fontWeight = "800";
+        label.style.fontSize = "12px";
+        label.style.width = "100px";
+        row.appendChild(label);
+        
+        for (const key of g.keys) {
+            if (!TPLS[key]) continue;
+            const b = document.createElement("button");
+            b.innerHTML = "<span>" + TPLS[key].label + "</span>";
+            b.dataset.tpl = key;
+            b.onclick = () => selectTab(key);
+            row.appendChild(b);
+        }
+        tabsEl.appendChild(row);
     }
 }
 
 function selectTab(key) {
     current = key;
-    for (const b of document.getElementById("tabs").children)
+    const buttons = document.querySelectorAll("#tabs button");
+    for (const b of buttons) {
         b.classList.toggle("active", b.dataset.tpl === key);
+    }
     buildForm();
     buildColors();
     buildParams();
@@ -810,25 +833,80 @@ function buildForm() {
         const id = "f_" + f.k;
         const savedVal = (savedContent[current] || {})[f.k];
         const val = savedVal !== undefined ? savedVal : (DEFAULTS[current][f.k] || "");
-        let control;
-        if (f.type === "textarea") {
-            control = document.createElement("textarea");
-            control.rows = f.rows || 5;
+        
+        const labelEl = document.createElement("label");
+        labelEl.innerHTML = f.l;
+        wrap.appendChild(labelEl);
+
+        if (f.type === "radio") {
+            const radioGroup = document.createElement("div");
+            radioGroup.style.display = "flex";
+            radioGroup.style.flexDirection = "column";
+            radioGroup.style.gap = "8px";
+            radioGroup.style.marginTop = "8px";
+            
+            for (const opt of f.options) {
+                const rLabel = document.createElement("label");
+                rLabel.style.display = "flex";
+                rLabel.style.alignItems = "center";
+                rLabel.style.gap = "8px";
+                rLabel.style.cursor = "pointer";
+                rLabel.style.color = "var(--pop-white)";
+                rLabel.style.fontWeight = "600";
+                rLabel.style.fontSize = "14px";
+                
+                const rInput = document.createElement("input");
+                rInput.type = "radio";
+                rInput.name = id;
+                rInput.value = opt.val;
+                if (val === opt.val) rInput.checked = true;
+                
+                rInput.onchange = () => {
+                    saveContent(current, f.k, opt.val);
+                    applyNow();
+                };
+                
+                rLabel.appendChild(rInput);
+                rLabel.appendChild(document.createTextNode(opt.label));
+                radioGroup.appendChild(rLabel);
+            }
+            // To make gatherValues() work without rewriting it, we keep a hidden input
+            const hiddenControl = document.createElement("input");
+            hiddenControl.type = "hidden";
+            hiddenControl.id = id;
+            hiddenControl.value = val;
+            
+            // Sync hidden control on radio change
+            const radios = radioGroup.querySelectorAll('input[type="radio"]');
+            radios.forEach(r => {
+                r.addEventListener('change', (e) => {
+                    hiddenControl.value = e.target.value;
+                });
+            });
+            
+            wrap.appendChild(hiddenControl);
+            wrap.appendChild(radioGroup);
         } else {
-            control = document.createElement("input");
+            let control;
+            if (f.type === "textarea") {
+                control = document.createElement("textarea");
+                control.rows = f.rows || 5;
+            } else {
+                control = document.createElement("input");
+            }
+            control.id = id;
+            control.dir = f.dir || "auto";
+            control.maxLength = f.max || 100;
+            control.value = val;
+            control.oninput = () => {
+                saveContent(current, f.k, control.value);
+                applyNow();
+            };
+            wrap.appendChild(control);
         }
-        control.id = id;
-        control.dir = f.dir;
-        control.maxLength = f.max;
-        control.value = val;
-        control.oninput = () => {
-            saveContent(current, f.k, control.value);
-            schedulePreview();
-        };
-        wrap.innerHTML = "<label for='" + id + "'>" + f.l + "</label>";
-        wrap.appendChild(control);
         form.appendChild(wrap);
     }
+}
 }
 
 /* =========================================================================
@@ -838,6 +916,7 @@ function buildColors() {
     const sch = SCHEMA.tpls[current];
     const box = document.getElementById("colors");
     box.innerHTML = "";
+    box.previousElementSibling.style.display = sch.colors && sch.colors.length ? "block" : "none";
 
     /* -- couleurs absentes de la palette partagee (ex. : couleur du panneau
           du generique, pas dans les tokens POP TV) : valeur par defaut du
@@ -938,6 +1017,7 @@ function buildParams() {
     const sch = SCHEMA.tpls[current];
     const box = document.getElementById("params");
     box.innerHTML = "";
+    box.previousElementSibling.style.display = (sch.numbers && sch.numbers.length) || (sch.selects && sch.selects.length) ? "block" : "none";
 
     const byGroup = {};
     for (const n of sch.numbers) (byGroup[n.group] = byGroup[n.group] || []).push(n);
@@ -1451,7 +1531,7 @@ async function queueStart() {
     initVisual();
     buildTabs();
     initPrevBg();               // fond d'apercu (damier defaut) AVANT le 1er load
-    selectTab("invite");
+    selectTab("titre");
     fitPreview();
     queueFetch();               // etat de la file (auto-demarrage si active)
 })();

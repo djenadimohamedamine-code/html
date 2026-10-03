@@ -9,7 +9,7 @@ capture frame par frame avec Playwright (SSAA x3), puis encodage :
 
 Quality settings (copiés d'Allo Chef) :
     * supersampling x3 (5760x3240) puis ré-échantillonnage Lanczos vers 1920x1080
-    * template V1b (Nom/Titre/Bug/Fullscreen) : timeline complete 5,0 s @ 50 i/s
+    * template V1b (Nom/Titre/Bug/Titre 2) : timeline complete 5,0 s @ 50 i/s
       -> fade-in 400 ms (ease-out) + maintien -> coupe franche hors clip (HOLD_MS)
     * synthe INVITE (animation V2) : timeline complete 10,0 s @ 50 i/s
       -> entree 950 ms (delai 250 ms) + AFFICHAGE (hold) 7400 ms + sortie 850 ms
@@ -19,7 +19,8 @@ Quality settings (copiés d'Allo Chef) :
 1. INTERFACE (recommande)
        double-clique sur  PANNEAU_DE_CONTROLE\\INTERFACE_WEB.bat
        -> lance le serveur local (port 8730) et ouvre la page
-       -> 6 onglets (Invite / Nom / Titre / Bug / Fullscreen / Generique),
+       -> 6 onglets (Invite / Nom / Titre / Bug / Titre 2 / Generique ; Fullscreen
+          masque de l'interface, conserve en repli interne),
           apercu en direct du VRAI design, bouton GENERER
        -> produit EXPORTS/TalkShow_<X>.mov (alpha 1080i50 — 5,00 s,
           10,00 s pour l'Invite) + PREVIEW mp4
@@ -66,17 +67,12 @@ UI_PAGE = os.path.join(BASE_DIR, "TALKSHOW.html")
 TMP_HTML = os.path.join(BASE_DIR, "_render_tmp.html")
 
 TEMPLATES = {
-    "invite":     {"file": "template_invite.html",     "label": "Master Invite", "out": "Invite",     "frames": 500},
-    "nom":        {"file": "template_nom.html",        "label": "Nom simple",    "out": "Nom",        "frames": 250},
-    "titre":      {"file": "template_titre.html",      "label": "Titre / Sujet", "out": "Titre",      "frames": 250},
+    "titre":      {"file": "template_titre.html",      "label": "Titre 1",       "out": "Titre1",     "frames": 250},
+    "synthe1":    {"file": "template_synthe1.html",    "label": "Synthé 1",      "out": "Synthe1",    "frames": 250},
+    "titre2":     {"file": "template_titre2.html",     "label": "Titre 2",       "out": "Titre2",     "frames": 250},
+    "synthe2":    {"file": "template_synthe2.html",    "label": "Synthé 2",      "out": "Synthe2",    "frames": 250},
     "bug":        {"file": "template_bug.html",        "label": "Bug permanent", "out": "Bug",        "frames": 250},
-    "fullscreen": {"file": "template_fullscreen.html", "label": "Plein ecran",   "out": "Fullscreen", "frames": 250},
-    # Invite : 500 images = clip du synthe (animation V2) de 10,00 s
-    # (CLIP_INVITE_MS @ 50 i/s) — les 4 templates V1b gardent 250 / 5,00 s.
-    # frames du genérique = repli uniquement — sa duree reelle est dynamique
-    # (voir credits_duration_ms / credits_frames) : ~378 images au contenu
-    # par defaut (defilement 5533 ms [trajet entier] + pause finale 2000 ms).
-    "generique":  {"file": "template_generique.html",  "label": "Générique de fin", "out": "Generique", "frames": 250},
+    "generique":  {"file": "template_generique.html",  "label": "Générique",     "out": "Generique",  "frames": 250},
 }
 
 FPS = 50
@@ -95,44 +91,48 @@ URL = "http://%s:%d/" % (HOST, PORT)
 
 # contenu par defaut = celui des templates officiels
 DEFAULTS = {
-    "invite": {
-        "nom": "\u0645\u062d\u0645\u062f \u0623\u0645\u064a\u0646",
-        "role": "\u0645\u0642\u062f\u0651\u0645 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062c \u0648 \u0645\u062e\u0631\u062c TV",
-        "badge_ar": "\u0636\u064a\u0641",
-        "badge_la": "INVIT\u00c9",
-    },
-    "nom": {
-        "nom": "\u0645\u062d\u0645\u062f \u0623\u0645\u064a\u0646",
-        "role": "\u0645\u0642\u062f\u0651\u0645 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062c \u0648 \u0645\u062e\u0631\u062c TV",
-    },
     "titre": {
         "title_main": "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟",
         "title_sub": "موضوع النقاش",
     },
+    "synthe1": {
+        "s1_name": "محمد أمين",
+        "s1_role": "مقدم البرنامج",
+        
+    },
+    "titre2": {
+        "title2_text": "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟",
+    },
+    "synthe2": {
+        "s2_name": "محمد أمين",
+        "s2_role": "محلل سياسي",
+        "s2_layout": "solo"
+    },
     "bug": {
-        "texte": "LIVE COOKING",
+        "texte": "TALKSHOW",
     },
-    "fullscreen": {
-        "tab": "\u0645\u0644\u062e\u0635 \u0627\u0644\u0646\u0642\u0627\u0634",
-        "lead": "\u0623\u0628\u0631\u0632 \u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639 \u0627\u0644\u062a\u064a \u062a\u0646\u0627\u0648\u0644\u062a\u0647\u0627 \u0627\u0644\u062d\u0644\u0642\u0629",
-        "textes": [
-            "\u062a\u0631\u0643\u0651\u0632 \u0627\u0644\u0646\u0642\u0627\u0634 \u0639\u0644\u0649 \u0627\u0644\u0648\u0636\u0639 \u0627\u0644\u0627\u0642\u062a\u0635\u0627\u062f\u064a \u0627\u0644\u062d\u0627\u0644\u064a \u0648\u062a\u0623\u062b\u064a\u0631\u0647 \u0639\u0644\u0649 \u0627\u0644\u0642\u062f\u0631\u0629 \u0627\u0644\u0634\u0631\u0627\u0626\u064a\u0629 \u0644\u0644\u0623\u0633\u0631 \u0627\u0644\u062a\u0648\u0646\u0633\u064a\u0629\u060c \u0641\u0636\u0644\u0627\u064b \u0639\u0646 \u0645\u0644\u0641\u0651 \u0627\u0644\u0634\u0628\u0627\u0628 \u0648\u0627\u0644\u0628\u0637\u0627\u0644\u0629 \u0648\u0633\u0628\u0644 \u062e\u0644\u0642 \u0641\u0631\u0648\u0635 \u0639\u0645\u0644 \u062c\u062f\u064a\u062f\u0629\u060c \u0645\u0639 \u0645\u062d\u0627\u0648\u0644\u0629 \u062a\u0642\u062f\u064a\u0645 \u0645\u0642\u062a\u0631\u062d\u0627\u062a \u0639\u0645\u0644\u0629 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062a\u0637\u0628\u064a\u0642 \u0641\u064a \u0627\u0644\u0645\u0631\u062d\u0644\u0629 \u0627\u0644\u0645\u0642\u0628\u0644\u0629.",
-            "\u0643\u0645\u0627 \u062e\u0651\u0635\u0651\u064a\u0635\u062a \u0641\u0642\u0631\u0629 \u0644\u062a\u062d\u0644\u064a\u0644 \u0627\u0644\u0648\u0639\u0648\u062f \u0627\u0644\u0627\u0646\u062a\u062e\u0627\u0628\u064a\u0629 \u0627\u0644\u062a\u064a \u062a\u0642\u062f\u0651\u0645\u0647\u0627 \u0627\u0644\u0623\u062d\u0632\u0627\u0628 \u0648\u0644\u0642\u064a\u0627\u0633 \u0645\u062f\u0649 \u0645\u0637\u0627\u0628\u0642\u062a\u0647\u0627 \u0644\u0648\u0627\u0642\u0639 \u0627\u0644\u0645\u0648\u0627\u0637\u0646 \u0627\u0644\u064a\u0648\u0645.",
-        ],
-    },
-    # meme contenu que template_generique.html (marqueurs CR:START / CR:END)
     "generique": {
-        "credits": ("# RÉALISATION\nMohamed Amine Djenadi\nAhmed\nKarim\n"
-                    "# CAMÉRAS\nAli\nSamir\nNadir\n"
-                    "# RÉGIE\nSofiane\nYacine"),
-    },
+        "credits": """# تقديم
+محمد أمين
+
+# إعداد
+كريم بن مسعود
+ليلى خليل
+
+# إخراج
+سمير جابر"""
+    }
 }
+
 
 # longueurs maximales (lelettre arabe large : protege le bloc compact)
 LIMITS = {
     "invite": {"nom": 24, "role": 40, "badge_ar": 10, "badge_la": 12},
     "nom": {"nom": 24, "role": 40},
     "titre": {"title_main": 80, "title_sub": 50},
+    "titre2": {"title2_text": 90},
+        "synthe2": {"s2_name": 40, "s2_role": 60},
+    "synthe1": {"s1_name": 40, "s1_role": 60},
     "bug": {"texte": 30},
     "fullscreen": {"tab": 20, "lead": 70},
     "generique": {"credits": 6000},   # garde-fou : lignes illimitees en pratique
@@ -330,94 +330,56 @@ _FADE = [
 ]
 
 VISUAL = {
-    "invite": {
-        "colors": _colors("bg", "name", "role_c", "badge_bg", "badge_txt", "border1", "border2", "glow"),
-        "numbers": (_GEOM_INVITE +
-                    [_px("bg_alpha", "couleurs", "Opacité du fond (%)", "--ts-bg-alpha", 100, 0, 100, 1, ""),
-                     _px("name_size", "typographie", "Taille du nom", "--ts-name-size", 72, 40, 120),
-                     _px("role_size", "typographie", "Taille de la fonction", "--ts-role-size", 36, 16, 60),
-                     _px("chip_size", "typographie", "Taille du badge latin", "--ts-chip-size", 24, 12, 48),
-                     _px("glow", "ombre", "Intensité lumineuse (%)", "--ts-glow-intensity", 0, 0, 100, 5, "")]
-                    + _SHADOW + _WASH + _ANIM_INVITE),
-        "selects": [_font_sel(), _sel("model", "geometrie", "Modèle de synthé", MODEL_OPTIONS, "original")] + _ANIM_INVITE_SELECTS,
-    },
-    "nom": {
-        "colors": _colors("bg", "name", "role_c", "border1", "border2", "glow"),
-        "numbers": (_GEOM_INVITE +
-                    [_px("bg_alpha", "couleurs", "Opacité du fond (%)", "--ts-bg-alpha", 100, 0, 100, 1, ""),
-                     _px("name_size", "typographie", "Taille du nom", "--ts-name-size", 72, 40, 120),
-                     _px("role_size", "typographie", "Taille de la fonction", "--ts-role-size", 36, 16, 60)]
-                    + _SHADOW + _WASH + _FADE),
-        "selects": [_font_sel()],
-    },
     "titre": {
-        "colors": _colors("title_bg_top", "title_bg_bottom", "title_text_main", "title_text_sub", "title_separator"),
-        "numbers": ([
-            _px("title_bg_top_alpha", "opacites", "Opacité fond haut (%)", "--ts-title-bg-top-alpha", 85, 0, 100, 1, ""),
-            _px("title_bg_bottom_alpha", "opacites", "Opacité fond bas (%)", "--ts-title-bg-bottom-alpha", 85, 0, 100, 1, ""),
-            _px("title_main_size", "typographie", "Taille principal", "--ts-title-main-size", 58, 30, 120),
-            _px("title_sub_size", "typographie", "Taille secondaire", "--ts-title-sub-size", 36, 20, 60),
+        "colors": [],
+        "numbers": [
             _px("title_pos_y", "geometrie", "Position Y (px depuis le bas)", "--ts-title-pos-y", 120, 0, 800),
-            _px("title_band_top_height", "geometrie", "Hauteur bandeau haut", "--ts-title-band-top-h", 88, 40, 200),
-            _px("title_band_bottom_height", "geometrie", "Hauteur bandeau bas", "--ts-title-band-bottom-h", 55, 20, 150),
-            _px("title_separator_height", "geometrie", "Épaisseur séparateur", "--ts-title-separator-h", 1, 0, 20),
             _px("show_title_top", "visibilite", "Afficher bandeau haut (1=Oui 0=Non)", "--ts-show-title-top", 1, 0, 1, 1, "")
-        ] + _WASH + _FADE),
-        "selects": [_font_sel()],
+        ],
+        "selects": [],
+    },
+    "synthe1": {
+        "colors": [],
+        "numbers": [
+            _px("s1_pos_x", "geometrie", "Position X droite (px)", "--ts-s1-pos-x", 100, 0, 600, 2),
+            _px("s1_pos_y_combined", "geometrie", "Position Y COMBINÉ (px)", "--ts-s1-pos-y-combined", 291, 0, 600, 2),
+            _px("s1_hold", "animation", "Durée maintien (ms)", "--ts-s1-hold", 4600, 100, 9500, 10, "ms"),
+        ],
+        "selects": [],
+    },
+    "titre2": {
+        "colors": [],
+        "numbers": [
+            _px("t2_pos_x", "geometrie", "Position X droite (px)", "--ts-t2-pos-x", 100, 0, 600, 2),
+            _px("t2_pos_y", "geometrie", "Position Y (px depuis le bas)", "--ts-t2-pos-y", 120, 0, 800, 2),
+        ],
+        "selects": [],
+    },
+    "synthe2": {
+        "colors": [],
+        "numbers": [
+            _px("s2_pos_x", "geometrie", "Position X droite (px)", "--ts-s2-pos-x", 100, 0, 600, 2),
+            _px("s2_pos_y", "geometrie", "Position Y SOLO (px)", "--ts-s2-pos-y", 120, 0, 600, 2),
+            _px("s2_pos_y_combined", "geometrie", "Position Y COMBINÉ (px)", "--ts-s2-pos-y-combined", 240, 0, 600, 2),
+        ],
+        "selects": [],
     },
     "bug": {
-        "colors": _colors("badge_bg", "badge_txt"),
+        "colors": [],
         "numbers": [
             _px("pos_x", "geometrie", "Position X (depuis la gauche)", "--ts-pos-x", 90, 20, 400),
             _px("pos_y", "geometrie", "Position Y (depuis le bas)",   "--ts-pos-y", 60, 20, 400),
             _px("name_size", "typographie", "Taille du texte", "--ts-name-size", 45, 20, 80),
-        ] + _FADE,
-        "selects": [_font_sel()],
+        ],
+        "selects": [],
     },
-    "fullscreen": {
-        "colors": _colors("bg", "name", "role_c", "badge_bg", "badge_txt", "border1", "border2", "glow"),
-        "numbers": [
-            _px("pos_x", "geometrie", "Position X (marges gauche/droite)", "--ts-pos-x", 90, 20, 400),
-            _px("fs_top", "geometrie", "Position Y — marge haute", "--ts-fs-top", 120, 40, 300),
-            _px("fs_bottom", "geometrie", "Position Y — marge basse", "--ts-fs-bottom", 100, 40, 300),
-            _px("fs_content_max", "typographie", "Largeur du contenu (px)", "--ts-fs-content-max", 1480, 600, 1480),
-            _px("lead_size", "typographie", "Taille du lead", "--ts-lead-size", 54, 20, 70),
-            _px("text_size", "typographie", "Taille du texte", "--ts-text-size", 32, 14, 50),
-        ] + _SHADOW + _WASH + _FADE,
-        "selects": [_font_sel()],
-    },
-    # 6e template : VISUAL dedie -> la whitelist sanitize_visual() verrouille
-    # exactement ces cles. group: geometrie/typographie/animation = groupes de
-    # buildParams() ; "couleurs" = section "Couleurs & palette" du panneau
-    # (buildColors y rend aussi les NOMBRES de ce groupe : l'opacite).
-    # 4 controles couleur/alpha demandes : Couleur du panneau (rapporte en
-    # vraie transparence rgba() par credits_style), Opacite 0-100 %,
-    # Couleur des categories, Couleur des noms. Plus de "bg" plein ecran :
-    # le canvas devient ALPHA, la video passe derriere le panneau translucide.
     "generique": {
-        "colors": [
-            {"id": "panel", "group": "couleurs", "label": "Couleur du panneau",
-             "type": "color", "css": "--ts-cred-panel", "default": "#0A0414"},
-        ] + _colors(("border2", "Couleur des catégories"), ("name", "Couleur des noms")),
-        "numbers": [
-            _px("panel_alpha", "couleurs", "Opacité du panneau (alpha)", "--ts-cred-panel-alpha", 75, 0, 100, 1, "%"),
-            _px("roll_speed", "animation", "Vitesse du défilement", "--ts-cred-speed", 150, 50, 400, 1, "px/s"),
-            # pause AJOUTEE apres l'arret (jamais dediee au defilement) :
-            # duree totale = defilement + hold*1000 — voir credits_duration_ms
-            _px("hold", "animation", "Pause finale sur le dernier élément", "--ts-cred-hold", 2, 0, 5, 0.5, "s"),
-            _px("cat_size", "typographie", "Taille catégorie", "--ts-cat-size", 40, 24, 60),
-            _px("name_size", "typographie", "Taille noms", "--ts-name-size", 36, 20, 50),
-            _px("spacing", "geometrie", "Espacement entre blocs", "--ts-spacing", 60, 20, 120),
-            _px("glow", "ombre", "Intensité lumineuse (%)", "--ts-glow-intensity", 0, 0, 100, 5, ""),
-        ],
-        "selects": [
-            _font_sel(),
-            _sel("align_x", "geometrie", "Position horizontale",
-                 [("left", "Gauche"), ("center", "Centre"), ("right", "Droite")],
-                 "center", css="--ts-align-x"),
-        ],
+        "colors": [],
+        "numbers": [],
+        "selects": [],
     },
 }
+
 
 GROUP_LABELS = {"couleurs": "COULEURS", "geometrie": "POSITION",
                 "typographie": "TAILLES / TYPOGRAPHIE",
@@ -573,7 +535,7 @@ def font_style(tpl, params):
     glyphe arabe retombe sur Kufi -> RTL/arabe conserves, aucun changement de
     mise en page induit."""
     clean = sanitize_visual(tpl, params)
-    fid = clean.get("font", "default")
+    fid = clean.get("font", clean.get("title2_font_family", clean.get("s2_font_family", "default")))
     fam = FONT_FAMILIES.get(fid) if fid else None
     if not fam:
         return ""
@@ -893,6 +855,8 @@ def credits_style(params):
         "  --ts-name-size: %dpx;" % v["name_size"],
         "  --ts-spacing: %dpx;" % v["spacing"],
         "  --ts-align-x: %s;" % v["align_x"],
+        "  --ts-cred-line-alpha: %d;" % v["credit_line_alpha"],
+        "  --ts-cred-glow-alpha: %d;" % v["credit_glow_alpha"],
     ]
     return ('<style id="ts-cred-params">\n:root {\n%s\n}\n</style>\n'
             % "\n".join(lines))
@@ -930,6 +894,32 @@ def compose_html(tpl, params=None):
         src = _set_text(src, "ts-titleband-sub", clean_text(p.get("title_sub"), lim["title_sub"]) or DEFAULTS["titre"]["title_sub"])
         if int(p.get("show_title_top", 1)) == 0:
             src = src.replace('class="ts-titleband"', 'class="ts-titleband hide-top"')
+    elif tpl == "titre2":
+        t2 = clean_text(p.get("title2_text"), lim["title2_text"]) or DEFAULTS["titre2"]["title2_text"]
+        src = _set_text(src, "ts-headline2-text", t2)
+        # arabe : letter-spacing coupe (casse les liaisons) + pas de majuscules
+        if re.search("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", t2):
+            src = src.replace('class="ts-headline2-text"', 'class="ts-headline2-text is-arabic"', 1)
+    elif tpl == "synthe1":
+        # SYNTHE 1: Toujours combiné avec Titre 1 (plus de mode SOLO)
+        src = src.replace('class="ts-s1"', 'class="ts-s1 layout-with-titre1"')
+        name = clean_text(p.get("s1_name", ""), 40)
+        role = clean_text(p.get("s1_role", ""), 60)
+        src = _set_text(src, "ts-s1-name", name)
+        src = _set_text(src, "ts-s1-role", role)
+        
+    elif tpl == "synthe2":
+        layout = p.get("s2_layout", "solo")
+        if layout == "with_titre2" or layout == "with_title2":
+            src = src.replace('class="ts-s2"', 'class="ts-s2 layout-with-titre2"')
+        name = clean_text(p.get("s2_name"), lim["s2_name"]) or DEFAULTS["synthe2"]["s2_name"]
+        role = clean_text(p.get("s2_role"), lim["s2_role"]) or DEFAULTS["synthe2"]["s2_role"]
+        src = _set_text(src, "ts-s2-name", name)
+        src = _set_text(src, "ts-s2-role", role)
+        if re.search("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", name):
+            src = src.replace('class="ts-s2-name"', 'class="ts-s2-name is-arabic"', 1)
+        if re.search("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", role):
+            src = src.replace('class="ts-s2-role"', 'class="ts-s2-role is-arabic"', 1)
     elif tpl == "bug":
         src = _set_text(src, "ts-bug-text", clean_text(p.get("texte"), lim["texte"]) or DEFAULTS["bug"]["texte"])
     elif tpl == "fullscreen":
@@ -1683,7 +1673,7 @@ def main():
     parser.add_argument("--no-open", action="store_true",
                         help="Avec --serve : ne pas ouvrir le navigateur")
     parser.add_argument("--only", default=None,
-                        help="Rendre un seul template (Invite/Nom/Titre/Bug/Fullscreen/Generique)")
+                        help="Rendre un seul template (Invite/Nom/Titre/Titre2/Bug/Fullscreen/Generique)")
     parser.add_argument("--frames", type=int, default=None, help="Limiter les images (test)")
     parser.add_argument("--no-preview", action="store_true", help="Ne pas produire le .mp4")
     args = parser.parse_args()

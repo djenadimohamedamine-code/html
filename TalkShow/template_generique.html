@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — POP TV — Générique de fin</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <!-- defauts du generique : redefinissent --ts-name-size (72 px = token du
+         Master Invite dans talkshow.css) pour que le fichier ouvert brut
+         corresponde aux valeurs Python (36 px). Au rendu et a l'apercu,
+         credits_style() est injectee APRES cette feuille et l'emporte
+         toujours (memes specificites, derniere feuille gagne). -->
+    <style>
+        :root {
+            --ts-cat-size: 40px;
+            --ts-name-size: 36px;
+            --ts-spacing: 60px;
+            --ts-align-x: center;
+            --ts-cred-speed: 150;
+            --ts-cred-hold: 2000;   /* pause finale en ms (repli local) :
+                                       2000 = defaut Python de credits_style */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- canvas broadcast 1920x1080, fond ALPHA : la video passe derriere
+         le panneau translucide des credits (rgba(), --ts-cred-panel) -->
+    <div class="canvas" id="canvas">
+
+        <!-- générique : defilement vertical bas -> haut, duree dynamique.
+             Le contenu (# = categorie, sinon nom) est injecte par compose_html()
+             entre les marqueurs CR:START / CR:END (templates officiels intacts). -->
+        <div class="ts-generique-wrapper">
+            <div id="ts-credits-track" class="ts-credits-track">
+                <!--CR:START-->
+                <div class="cr-block">
+                    <div class="cr-cat">الإشراف العام</div>
+                    <div class="cr-name">أحمد بن صالح</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">رئيس التحرير</div>
+                    <div class="cr-name">سعاد بن محمود</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">الإعداد</div>
+                    <div class="cr-name">كريم عبد النور</div>
+                    <div class="cr-name">ليلى طرابلسي</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">مدير التصوير</div>
+                    <div class="cr-name">سمير العبيدي</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">الكاميرات</div>
+                    <div class="cr-name">أمين بلقاسم</div>
+                    <div class="cr-name">ياسين دراجي</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">هندسة الصوت</div>
+                    <div class="cr-name">وليد بن عمار</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">المونتاج والجرافيك</div>
+                    <div class="cr-name">مهدي خليل</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">الإضاءة</div>
+                    <div class="cr-name">طارق الماجري</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">التنسيق والمتابعة</div>
+                    <div class="cr-name">نادية فؤاد</div>
+                </div>
+                <div class="cr-block">
+                    <div class="cr-cat">الإخراج</div>
+                    <div class="cr-name">محمد أمين جنادي</div>
+                </div>
+                <!--CR:END-->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    /* =========================================================================
+       Générique — défilement vertical bas -> haut (Web Animations API).
+
+       DURÉE : source unique = variable CSS --ts-cred-dur, injectée par
+       compose_html() (render_talkshow.py : credits_duration_ms()). Elle vaut
+       DÉFILEMENT + PAUSE FINALE (--ts-cred-hold, ms ; défaut 2000). Python
+       calcule la durée AVANT le rendu -> nombre d'images du .mov = même
+       valeur -> preview et .mov strictement identiques. La hauteur est
+       déterministe (une ligne = une ligne : white-space nowrap + line-height
+       explicite dans talkshow.css), donc pas de mesure nécessaire côté Python.
+       Repli local (fichier ouvert hors serveur) : durée = distance / vitesse
+       + pause finale lue dans --ts-cred-hold.
+
+       DÉCLENCHEMENT : première apparition de body.playing — exactement le même
+       signal que le renderer (render_one) et preview_html(). La garde "started"
+       rend le démarrage unique : impossible de doubler l'animation, quel que
+       soit le nombre de mutations de classe. habillage.js ne déclenche rien
+       d'autre sur ce template (sa coupe à 5000 ms ne touche pas une animation
+       déjà créée : elle ne fait que retirer la classe .playing).
+
+       Aucun easing : vitesse constante (linear), aucune rotation, aucune
+       échelle, aucun arrêt entre les lignes, fill forwards -> à la fin, le
+       bloc est ARRETÉ sur sa position finale : bord bas du contenu à
+       1080 - endGap (1016 px), donc le dernier élément réel du générique
+       reste affiché à l'écran. Le défilement ne continue jamais au-delà.
+
+       PAUSE FINALE : après l'arrivée, un segment de keyframes SANS
+       mouvement (même translateY, offset 1) fige le dernier élément pendant
+       --ts-cred-hold ms. Elle est AJOUTÉE au défilement : le segment de
+       roulement garde exactement la même vitesse (distance / rollMs), les 2 s
+       ne ralentissent rien. 100 % dynamique (fin = hauteur réelle du contenu).
+
+       POSITIONS ENTIÈRES (C1) : arrivée arrondie au pixel + roulement en
+       pas de 1 px (steps) -> jamais de position fractionnaire à l'échelle
+       device -> aucun ré-échantillonnage de sous-pixel, texte stable comme
+       le synthé. miroir Python : credits_duration_ms (floor(x + 0.5)).
+
+       POSITION FINALE (100 % dynamique, aucune valeur codée pour un nom) :
+       la fin se base sur la HAUTEUR RÉELLE du contenu (h mesuré sur la
+       track) -> catégories et noms illimités : on ajoute « PRODUCTION /
+       Nom de la production » et l'arrêt se recalcule tout seul après lui.
+       miroir Python : CR_END_GAP / credits_duration_ms() / credits_frames().
+       ========================================================================= */
+    (function () {
+        'use strict';
+
+        var started = false;
+        var track = document.getElementById("ts-credits-track");
+
+        function roll() {
+            if (started || !track) return;
+            started = true;
+
+            var vh = 1080;                                   /* format broadcast */
+            var endGap = 64;                                 /* marge basse finale (miroir CR_END_GAP) */
+            var h = track.getBoundingClientRect().height;    /* hauteur réelle du bloc */
+            var cs = getComputedStyle(document.documentElement);
+            var durMs = parseFloat(cs.getPropertyValue("--ts-cred-dur"));   /* DURÉE TOTALE = roulement + pause */
+            var holdMs = parseFloat(cs.getPropertyValue("--ts-cred-hold")); /* pause finale (ms) */
+            var speed = parseFloat(cs.getPropertyValue("--ts-cred-speed")) || 150;
+
+            if (!(holdMs >= 0)) holdMs = 2000;               /* repli : 2 s (défaut Python) */
+
+            /* POSITIONS ENTIÈRES (neteté « synthé » — C1) :
+               arrivée arrondie au pixel (Math.round = floor(x + 0.5), miroir
+               EXACT de credits_duration_ms) et roulement quantifié en pas de
+               1 px par steps(dist, jump-end) -> TOUTE position affichée est
+               un entier (preview temps réel comme plans MOV scrubbés à 20 ms).
+               La couche du texte n'est donc jamais ré-échantillonnée à une
+               phase différente d'image en image -> plus de scintillement de
+               sous-pixel. À 150 px/s le pas reste de 3 px par image : défil-
+               ment visuellement identique, linéaire et fluide. */
+            var endY = Math.round(vh - h - endGap);          /* ex. 250 px (entier) */
+            var dist = vh - endY;                            /* trajet entier (>= 64 px) */
+
+            var rollMs;
+            if (!(durMs > 0)) {
+                /* ouverture directe du fichier (pas de serveur) */
+                rollMs = (dist / speed) * 1000;
+                durMs = rollMs + holdMs;
+            } else {
+                rollMs = durMs - holdMs;
+            }
+            if (!(rollMs > 0)) {                             /* garde-fou : pause >= total */
+                rollMs = durMs;
+                holdMs = 0;
+            }
+
+            /* depart : bord haut du bloc = bord bas de l'ecran (entre par le
+               bas) — arrivee : bord bas du bloc = 1080 - endGap (1016 px ±
+               l'arrondi entier) : le dernier element du contenu est arrive a
+               sa position finale visible et l'animation s'y ARRETE (fill
+               forwards). Rien ne continue de monter apres le dernier
+               nom/categorie. */
+               
+            /* EFFET LUMINEUX : on calcule dynamiquement le delai de l'animation
+               CSS "premium-sweep" pour qu'elle s'enclenche une seule fois, 
+               exactement au moment ou la categorie entre a l'ecran (Y=1080) */
+            var cats = document.querySelectorAll('.cr-cat');
+            for (var i = 0; i < cats.length; i++) {
+                var enterTimeMs = (cats[i].offsetTop / speed) * 1000;
+                cats[i].style.setProperty('--sweep-delay', enterTimeMs + 'ms');
+            }
+
+            var kf = [
+                /* steps(dist, jump-end) : le roulement avance par sauts de
+                   1 px entier au lieu d'une interpolation continue -> toutes
+                   les positions affichées restent entières, quel que soit le
+                   moment (preview 60 Hz) et la vitesse choisie */
+                { transform: "translateY(" + vh + "px)", offset: 0,
+                  easing: "steps(" + dist + ", jump-end)" },
+                { transform: "translateY(" + endY + "px)", offset: rollMs / durMs }
+            ];
+            if (holdMs > 0) {
+                /* pause finale : segment sans mouvement — le dernier élément
+                   reste affiché/lisible pendant holdMs avant la fin du clip */
+                kf.push({ transform: "translateY(" + endY + "px)", offset: 1 });
+            }
+            track.animate(kf, {
+                duration: durMs,          /* total : roulement puis pause */
+                easing: "linear",         /* vitesse constante sur le roulement */
+                fill: "forwards"
+            });
+        }
+
+        function arm() {
+            if (!document.body || !track) return;
+
+            if (document.body.classList.contains("playing")) {
+                roll();
+            }
+
+            /* déclenchement unique : la première mise en .playing suffit,
+               puis l'observateur se détache (double protection : "started") */
+            var obs = new MutationObserver(function () {
+                if (started) { obs.disconnect(); return; }
+                if (document.body.classList.contains("playing")) {
+                    obs.disconnect();
+                    roll();
+                }
+            });
+            obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+        }
+
+        arm();
+    })();
+    </script>
+    <script src="assets/habillage.js"></script>
+</body>
+</html>

@@ -712,15 +712,56 @@ body.playing .ts-motion {
     text-align: center;
 }
 
+
 .cr-cat {
+    position: relative;
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--ts-cat-size, 40px);
-    line-height: 1.2;              /* miroir Python : duree dynamique */
+    line-height: 1.2;
     color: var(--ts-badge-bg);
     text-transform: uppercase;
-    white-space: nowrap;           /* hauteur deterministe : 1 ligne = 1 ligne */
+    white-space: nowrap;
+    padding-bottom: 0.35em;
+    margin-bottom: 0.1em;
 }
+
+.cr-cat::after {
+    content: '';
+    position: absolute;
+    bottom: 0.1em;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 2px;
+    width: 70%;
+    background-color: var(--ts-cred-line-c, #FFFFFF);
+    opacity: calc(var(--ts-cred-line-alpha, 25) / 100);
+}
+
+.cr-cat::before {
+    content: '';
+    position: absolute;
+    bottom: calc(0.1em - 2px); /* Ligne + decalage optique vers le bas */
+    left: 50%;
+    transform: translateX(-50%);
+    height: 3px;
+    width: 60%;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        var(--ts-cred-glow-c, #00E5FF) 50%, 
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: premium-sweep 2.5s cubic-bezier(0.25, 1, 0.5, 1) var(--sweep-delay, 0s) 1 both;
+}
+
+@keyframes premium-sweep {
+    0% { background-position: 200% 0; opacity: 0; }
+    20% { opacity: calc(var(--ts-cred-glow-alpha, 20) / 100); }
+    100% { background-position: -100% 0; opacity: 0; }
+}
+
 
 .cr-name {
     font-family: var(--font-text);

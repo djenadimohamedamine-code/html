@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — Famille 1 — Synthé 1</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/synthe1.css">
+</head>
+<body>
+    <div class="canvas">
+        <div class="ts-s1">
+            <div class="ts-s1-wrap">
+                <div class="ts-s1-name-band">
+                    <div class="ts-s1-name" dir="auto">محمد أمين</div>
+                </div>
+                <div class="ts-s1-separator"></div>
+                <div class="ts-s1-role-band">
+                    <div class="ts-s1-role" dir="auto">مقدم البرنامج</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var wrap   = document.querySelector('.ts-s1-wrap');
+        var s1     = document.querySelector('.ts-s1');
+        var nameTxt = document.querySelector('.ts-s1-name');
+        var roleTxt = document.querySelector('.ts-s1-role');
+        if (!wrap || !s1) return;
+
+        function fit() {
+            if (!nameTxt || !roleTxt) return;
+            nameTxt.style.fontSize = '';
+            roleTxt.style.fontSize = '';
+            var baseN = parseFloat(getComputedStyle(nameTxt).fontSize) || 46;
+            var baseR = parseFloat(getComputedStyle(roleTxt).fontSize) || 32;
+            var maxW  = parseFloat(getComputedStyle(wrap).maxWidth) || 700;
+            var padX  = parseFloat(getComputedStyle(s1.querySelector('.ts-s1-name-band')).paddingLeft || 0) * 2;
+            var avail = maxW - padX;
+            var ratio = 1.0, guard = 0;
+            var curW  = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
+            while (curW > avail && ratio > 0.55 && guard++ < 30) {
+                ratio -= 0.04;
+                nameTxt.style.fontSize = Math.floor(baseN * ratio) + 'px';
+                roleTxt.style.fontSize = Math.floor(baseR * ratio) + 'px';
+                curW = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
+            }
+        }
+
+        var playing = false;
+
+        function play() {
+            if (playing || !s1) return;
+            playing = true;
+
+            var cs     = getComputedStyle(document.documentElement);
+            var inDur  = parseFloat(cs.getPropertyValue('--ts-s1-in-dur'))  || 400;
+            var holdMs = parseFloat(cs.getPropertyValue('--ts-s1-hold'))    || 4600;
+            var outDur = parseFloat(cs.getPropertyValue('--ts-s1-out-dur')) || 400;
+            var outTo  = (cs.getPropertyValue('--ts-s1-out-to') || '').trim() || 'translateY(50px)';
+
+            var total = inDur + holdMs + outDur;
+
+            var kf = [
+                { opacity: 0, transform: outTo,          offset: 0 },
+                { opacity: 1, transform: 'translateY(0)', offset: inDur / total },
+                { opacity: 1, transform: 'translateY(0)', offset: (inDur + holdMs) / total },
+                { opacity: 0, transform: outTo,          offset: 1 }
+            ];
+
+            s1.animate(kf, {
+                duration:  total,
+                easing:    'ease-in-out',
+                fill:      'forwards'
+            });
+        }
+
+        function arm() {
+            if (!document.body) return;
+            if (document.body.classList.contains('playing')) { fit(); play(); return; }
+            var obs = new MutationObserver(function () {
+                if (playing) { obs.disconnect(); return; }
+                if (document.body.classList.contains('playing')) {
+                    obs.disconnect();
+                    fit();
+                    play();
+                }
+            });
+            obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(arm);
+        } else {
+            arm();
+        }
+        window.addEventListener('load', function () { fit(); });
+    })();
+    </script>
+</body>
+</html>

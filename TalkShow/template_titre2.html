@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — POP TV — Titre 2 (headline haut)</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/headline2.css">
+</head>
+<body>
+    <div class="canvas">
+        <div class="ts-headline2">
+            <div class="ts-headline2-wrap">
+                <div class="ts-headline2-box">
+                    <span class="ts-headline2-sheen"></span>
+                    <div class="ts-headline2-text" dir="auto">« J'AI DEUX MOTS À DIRE À CRISTIANO RONALDO »</div>
+                    <span class="ts-headline2-accent"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* Ajustement de largeur : si le texte depasse la largeur utile du
+       cartouche (title2_width), la taille est reduite par pas de 2 px
+       (jamais sous 50 % de la taille demandee) pour rester sur UNE ligne.
+       Idempotent, deterministe : apercu et rendu executent le meme code. */
+    (function () {
+        'use strict';
+        var wrap = document.querySelector('.ts-headline2-wrap');
+        var box  = document.querySelector('.ts-headline2-box');
+        var txt  = document.querySelector('.ts-headline2-text');
+        if (!wrap || !box || !txt) return;
+
+        function fit() {
+            txt.style.fontSize = '';
+            var base = parseFloat(getComputedStyle(txt).fontSize) || 50;
+            var cs = getComputedStyle(box);
+            var padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+            var bord = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+            var maxW = parseFloat(getComputedStyle(wrap).maxWidth);
+            if (!isFinite(maxW)) return;
+            var avail = maxW - padX - bord;
+            var size = base, guard = 0;
+            while (txt.offsetWidth > avail && size > base * 0.5 && guard++ < 60) {
+                size -= 2;
+                txt.style.fontSize = size + 'px';
+            }
+        }
+
+        fit();
+        if (document.fonts) {
+            if (document.fonts.ready) document.fonts.ready.then(fit);
+            document.fonts.addEventListener('loadingdone', fit);
+        }
+        window.addEventListener('load', fit);
+        new MutationObserver(fit).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    })();
+    </script>
+</body>
+</html>

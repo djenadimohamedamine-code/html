@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — POP TV — Synthé 2</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/synthe2.css">
+</head>
+<body>
+    <div class="canvas">
+        <div class="ts-s2">
+            <div class="ts-s2-wrap">
+                <div class="ts-s2-box">
+                    <div class="ts-s2-text-group">
+                        <div class="ts-s2-name" dir="auto">محمد أمين</div>
+                        <div class="ts-s2-role" dir="auto">مقدم البرنامج</div>
+                    </div>
+                    <span class="ts-s2-accent"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+        var wrap = document.querySelector('.ts-s2-wrap');
+        var box  = document.querySelector('.ts-s2-box');
+        var nameTxt = document.querySelector('.ts-s2-name');
+        var roleTxt = document.querySelector('.ts-s2-role');
+        if (!wrap || !box) return;
+
+        function fit() {
+            if (nameTxt) nameTxt.style.fontSize = '';
+            if (roleTxt) roleTxt.style.fontSize = '';
+            
+            var baseName = nameTxt ? (parseFloat(getComputedStyle(nameTxt).fontSize) || 46) : 46;
+            var baseRole = roleTxt ? (parseFloat(getComputedStyle(roleTxt).fontSize) || 32) : 32;
+            
+            var cs = getComputedStyle(box);
+            var padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+            var bord = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+            var maxW = parseFloat(getComputedStyle(wrap).maxWidth);
+            if (!isFinite(maxW)) return;
+            var avail = maxW - padX - bord;
+            
+            var ratio = 1.0, guard = 0;
+            var curW = Math.max(nameTxt ? nameTxt.offsetWidth : 0, roleTxt ? roleTxt.offsetWidth : 0);
+            
+            while (curW > avail && ratio > 0.5 && guard++ < 30) {
+                ratio -= 0.05;
+                if (nameTxt) nameTxt.style.fontSize = Math.floor(baseName * ratio) + 'px';
+                if (roleTxt) roleTxt.style.fontSize = Math.floor(baseRole * ratio) + 'px';
+                curW = Math.max(nameTxt ? nameTxt.offsetWidth : 0, roleTxt ? roleTxt.offsetWidth : 0);
+            }
+        }
+
+        fit();
+        if (document.fonts) {
+            if (document.fonts.ready) document.fonts.ready.then(fit);
+            document.fonts.addEventListener('loadingdone', fit);
+        }
+        window.addEventListener('load', fit);
+        new MutationObserver(fit).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — POP TV — Master Invite</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+</head>
+<body>
+
+    <!-- canvas broadcast 1920x1080, fond transparent -->
+    <div class="canvas" id="canvas">
+
+        <!-- lower-third bas droite : right 90px / bottom 60px -->
+        <!-- V2 : wrapper de motion. Le transform d'animation (translateY seul)
+             vit sur .ts-motion ; .ts-lower conserve sa geometrie V1b exacte
+             (skew UNIQUEMENT sur ::before, jamais sur le texte). -->
+        <div class="ts-motion">
+        <div class="ts-lower">
+
+            <div class="ts-badge">
+                <span class="ts-badge-ar" lang="ar">ضيف</span>
+                <span class="ts-badge-la">INVITÉ</span>
+            </div>
+
+            <div class="ts-panel">
+                <div class="ts-name" lang="ar">محمد أمين</div>
+                <div class="ts-role" lang="ar">مقدّم البرنامج و مخرج TV</div>
+            </div>
+
+        </div>
+
+        </div><!-- /ts-motion -->
+
+    </div>
+
+    <script src="assets/habillage.js"></script>
+</body>
+</html>
