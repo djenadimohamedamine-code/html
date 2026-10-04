@@ -189,4 +189,5 @@ body.playing .ts-headline2-sheen {
 .ts-headline2-text.is-arabic {
     letter-spacing: 0;
     text-transform: none;
+    padding-bottom: 16px;
 }
