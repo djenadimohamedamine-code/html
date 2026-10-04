@@ -57,7 +57,7 @@
 
             var cs     = getComputedStyle(document.documentElement);
             var inDur  = parseFloat(cs.getPropertyValue('--ts-s1-in-dur'))  || 400;
-            var holdMs = parseFloat(cs.getPropertyValue('--ts-s1-hold'))    || 4600;
+            var holdMs = parseFloat(cs.getPropertyValue('--ts-s1-hold'))    || 4080;
             var outDur = parseFloat(cs.getPropertyValue('--ts-s1-out-dur')) || 400;
             var outTo  = (cs.getPropertyValue('--ts-s1-out-to') || '').trim() || 'translateY(50px)';
 
@@ -71,6 +71,7 @@
             ];
 
             s1.animate(kf, {
+                delay:     80,
                 duration:  total,
                 easing:    'ease-in-out',
                 fill:      'forwards'

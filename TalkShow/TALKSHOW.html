@@ -524,9 +524,38 @@ const DEFAULTS = {
     bug: { texte: "TALKSHOW" },
     generique: {
         credits: [
-            "# تقديم", "محمد أمين", "", "# إعداد", "كريم بن مسعود", "ليلى خليل", "", "# إخراج", "سمير جابر"
-        ].join("
-")
+            "# الإشراف العام",
+            "أحمد بن صالح",
+            "",
+            "# رئيس التحرير",
+            "سعاد بن محمود",
+            "",
+            "# الإعداد",
+            "كريم عبد النور",
+            "ليلى طرابلسي",
+            "",
+            "# مدير التصوير",
+            "سمير العبيدي",
+            "",
+            "# الكاميرات",
+            "أمين بلقاسم",
+            "ياسين دراجي",
+            "",
+            "# هندسة الصوت",
+            "وليد بن عمار",
+            "",
+            "# المونتاج والجرافيك",
+            "مهدي خليل",
+            "",
+            "# الإضاءة",
+            "طارق الماجري",
+            "",
+            "# التنسيق والمتابعة",
+            "نادية فؤاد",
+            "",
+            "# الإخراج",
+            "محمد أمين جنادي"
+        ].join("\n")
     }
 };
 
@@ -557,6 +586,15 @@ function initContent() {
         }
         const raw = localStorage.getItem("talkshow_content_custom");
         if (raw) savedContent = JSON.parse(raw) || {};
+        
+        // FIX: Purge the short list regression from localStorage
+        if (!localStorage.getItem("ts_migrated_gen_v2")) {
+            if (savedContent.generique && savedContent.generique.credits) {
+                delete savedContent.generique.credits;
+            }
+            localStorage.setItem("talkshow_content_custom", JSON.stringify(savedContent));
+            localStorage.setItem("ts_migrated_gen_v2", "1");
+        }
     } catch(e) {}
 }
 function saveContent(tpl, key, val) {
@@ -906,7 +944,6 @@ function buildForm() {
         }
         form.appendChild(wrap);
     }
-}
 }
 
 /* =========================================================================
@@ -1366,7 +1403,7 @@ async function generate() {
     document.getElementById("result").style.display = "none";
     document.getElementById("prog").style.display = "block";
     document.getElementById("fill").style.width = "0";
-    setStatus("Démarrage du rendu…", "");
+    setStatus("RENDU EN COURS...", "");
 
     let res;
     try {
@@ -1395,14 +1432,14 @@ async function generate() {
         if (s.state === "rendering") {
             const pct = s.total ? Math.round(100 * s.progress / s.total) : 0;
             document.getElementById("fill").style.width = pct + "%";
-            setStatus("Capture images… " + s.progress + " / " + s.total + " (" + pct + " %)");
+            setStatus("RENDU EN COURS... Capture images " + pct + " %");
         } else if (s.state === "encoding") {
             document.getElementById("fill").style.width = "100%";
-            setStatus("Encodage FFmpeg en cours… (ne pas fermer)");
+            setStatus("RENDU EN COURS... Encodage FFmpeg");
         } else if (s.state === "done") {
             clearInterval(pollTimer);
             document.getElementById("fill").style.width = "100%";
-            setStatus("Terminé : " + s.file, "ok");
+            setStatus("RENDU TERMINÉ ✅<br>" + s.file, "ok");
             const result = document.getElementById("result");
             result.style.display = "flex";
             document.getElementById("dl").href = "/file?name=" + encodeURIComponent(s.file);
@@ -1414,7 +1451,7 @@ async function generate() {
             finish();
         } else if (s.state === "error") {
             clearInterval(pollTimer);
-            setStatus("Erreur : " + s.error, "err");
+            setStatus("ERREUR DE RENDU ❌<br>" + s.error, "err");
             finish();
         }
     }, 700);

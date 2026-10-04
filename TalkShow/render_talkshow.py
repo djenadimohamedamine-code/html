@@ -42,6 +42,7 @@ import copy
 import html as html_lib
 import io
 import json
+import time
 import math
 import os
 import re
@@ -112,32 +113,50 @@ DEFAULTS = {
         "texte": "TALKSHOW",
     },
     "generique": {
-        "credits": """# تقديم
-محمد أمين
+        "credits": """# الإشراف العام
+أحمد بن صالح
 
-# إعداد
-كريم بن مسعود
-ليلى خليل
+# رئيس التحرير
+سعاد بن محمود
 
-# إخراج
-سمير جابر"""
+# الإعداد
+كريم عبد النور
+ليلى طرابلسي
+
+# مدير التصوير
+سمير العبيدي
+
+# الكاميرات
+أمين بلقاسم
+ياسين دراجي
+
+# هندسة الصوت
+وليد بن عمار
+
+# المونتاج والجرافيك
+مهدي خليل
+
+# الإضاءة
+طارق الماجري
+
+# التنسيق والمتابعة
+نادية فؤاد
+
+# الإخراج
+محمد أمين جنادي"""
     }
 }
 
 
 # longueurs maximales (lelettre arabe large : protege le bloc compact)
 LIMITS = {
-    "invite": {"nom": 24, "role": 40, "badge_ar": 10, "badge_la": 12},
-    "nom": {"nom": 24, "role": 40},
     "titre": {"title_main": 80, "title_sub": 50},
     "titre2": {"title2_text": 90},
         "synthe2": {"s2_name": 40, "s2_role": 60},
     "synthe1": {"s1_name": 40, "s1_role": 60},
     "bug": {"texte": 30},
-    "fullscreen": {"tab": 20, "lead": 70},
     "generique": {"credits": 6000},   # garde-fou : lignes illimitees en pratique
 }
-MAX_PARAS = 3           # paragraphes fullscreen
 MAX_PARA_LEN = 240      # caracteres par paragraphe
 
 # generique : constantes MIROIR des regles CSS isolees (.cr-* / track).
@@ -285,18 +304,8 @@ DIR_OUT_OPTS = [("bas", "Vers le bas"), ("haut", "Vers le haut"),
 DIR_MOVE = {"bas": "translateY(240px)", "haut": "translateY(-240px)",
             "droite": "translateX(240px)", "gauche": "translateX(-240px)"}
 
-MODEL_OPTIONS = [
-    # ("original",         "Original (Master V2)"), # Masqué de l'UI comme demandé, conservé en fallback
-    ("minimal-ligne",    "Ligne Fine (Typo AE)"),
-    ("minimal-cadre",    "Cadre Fin (Typo AE)"),
-    ("minimal-vertical", "Ligne Gauche (Typo AE)"),
-]
 
 # ---- geometrie/taille communes ---------------------------------------------
-_GEOM_INVITE = [
-    _px("pos_x", "geometrie", "Position X (depuis la droite)", "--ts-pos-x", 90, 20, 400),
-    _px("pos_y", "geometrie", "Position Y (depuis le bas)",     "--ts-pos-y", 60, 20, 400),
-]
 _SHADOW = [
     _px("shadow_x", "ombre", "Ombre — décalage X", "--ts-shadow-x", 8, 0, 24),
     _px("shadow_y", "ombre", "Ombre — décalage Y", "--ts-shadow-y", 8, 0, 24),
@@ -313,18 +322,6 @@ _WASH = [
     _px("wash_intensity", "ombre", "Wash — Intensité (%)", "--ts-wash-intensity", 20, 0, 100, 5, ""),
     _px("wash_radius",    "ombre", "Wash — Diffusion (px)", "--ts-wash-radius",    6, 0, 20,  1, "px"),
 ]
-_ANIM_INVITE = [
-    _px("in_delay", "animation", "Délai avant entrée (ms)", "--ts-in-delay", 250, 0, 1000, 10, "ms"),
-    _px("in_dur",   "animation", "Durée de l'entrée (ms)", "--ts-in-dur",   950, 300, 2000, 10, "ms"),
-    _px("hold",     "animation", "Durée d'affichage — début de sortie (ms)", "--ts-hold", 8600, 500, 9500, 10, "ms"),
-    _px("out_dur",  "animation", "Durée de la sortie (ms)", "--ts-out-dur",  850, 300, 1600, 10, "ms"),
-]
-_ANIM_INVITE_SELECTS = [
-    _sel("anim_in_type", "animation", "Type d'entrée", ANIM_TYPE_OPTS, "mouvement"),
-    _sel("anim_in_dir",  "animation", "Direction de l'entrée", DIR_IN_OPTS, "bas"),
-    _sel("anim_out_type", "animation", "Type de sortie", ANIM_TYPE_OPTS, "mouvement"),
-    _sel("anim_out_dir",  "animation", "Direction de la sortie", DIR_OUT_OPTS, "bas"),
-]
 _FADE = [
     _px("fade_dur", "animation", "Durée de l'entrée — fondu (ms)", "--ts-fade-dur", 400, 100, 1500, 10, "ms"),
 ]
@@ -333,7 +330,6 @@ VISUAL = {
     "titre": {
         "colors": [],
         "numbers": [
-            _px("title_pos_y", "geometrie", "Position Y (px depuis le bas)", "--ts-title-pos-y", 120, 0, 800),
             _px("show_title_top", "visibilite", "Afficher bandeau haut (1=Oui 0=Non)", "--ts-show-title-top", 1, 0, 1, 1, "")
         ],
         "selects": [],
@@ -341,8 +337,6 @@ VISUAL = {
     "synthe1": {
         "colors": [],
         "numbers": [
-            _px("s1_pos_x", "geometrie", "Position X droite (px)", "--ts-s1-pos-x", 100, 0, 600, 2),
-            _px("s1_pos_y_combined", "geometrie", "Position Y COMBINÉ (px)", "--ts-s1-pos-y-combined", 291, 0, 600, 2),
             _px("s1_hold", "animation", "Durée maintien (ms)", "--ts-s1-hold", 4600, 100, 9500, 10, "ms"),
         ],
         "selects": [],
@@ -350,33 +344,47 @@ VISUAL = {
     "titre2": {
         "colors": [],
         "numbers": [
-            _px("t2_pos_x", "geometrie", "Position X droite (px)", "--ts-t2-pos-x", 100, 0, 600, 2),
-            _px("t2_pos_y", "geometrie", "Position Y (px depuis le bas)", "--ts-t2-pos-y", 120, 0, 800, 2),
         ],
         "selects": [],
     },
     "synthe2": {
         "colors": [],
-        "numbers": [
-            _px("s2_pos_x", "geometrie", "Position X droite (px)", "--ts-s2-pos-x", 100, 0, 600, 2),
-            _px("s2_pos_y", "geometrie", "Position Y SOLO (px)", "--ts-s2-pos-y", 120, 0, 600, 2),
-            _px("s2_pos_y_combined", "geometrie", "Position Y COMBINÉ (px)", "--ts-s2-pos-y-combined", 240, 0, 600, 2),
-        ],
+        "numbers": [],
         "selects": [],
     },
     "bug": {
         "colors": [],
         "numbers": [
-            _px("pos_x", "geometrie", "Position X (depuis la gauche)", "--ts-pos-x", 90, 20, 400),
-            _px("pos_y", "geometrie", "Position Y (depuis le bas)",   "--ts-pos-y", 60, 20, 400),
             _px("name_size", "typographie", "Taille du texte", "--ts-name-size", 45, 20, 80),
         ],
         "selects": [],
     },
-    "generique": {
-        "colors": [],
-        "numbers": [],
-        "selects": [],
+        "generique": {
+        "colors": [
+            {"id": "panel", "group": "couleurs", "label": "Couleur du panneau",
+             "type": "color", "css": "--ts-cred-panel", "default": "#0A0414"},
+            {"id": "credit_line_c", "group": "couleurs", "label": "Couleur du soulignement",
+             "type": "color", "css": "--ts-cred-line-c", "default": "#FFFFFF"},
+            {"id": "credit_glow_c", "group": "couleurs", "label": "Couleur du balayage",
+             "type": "color", "css": "--ts-cred-glow-c", "default": "#00E5FF"},
+        ] + _colors(("border2", "Couleur des catégories"), ("name", "Couleur des noms")),
+        "numbers": [
+            _px("panel_alpha", "couleurs", "Opacité du panneau (alpha)", "--ts-cred-panel-alpha", 75, 0, 100, 1, "%"),
+            _px("roll_speed", "animation", "Vitesse du défilement", "--ts-cred-speed", 150, 50, 400, 1, "px/s"),
+            _px("hold", "animation", "Pause finale sur le dernier élément", "--ts-cred-hold", 2, 0, 5, 0.5, "s"),
+            _px("cat_size", "typographie", "Taille catégorie", "--ts-cat-size", 40, 24, 60),
+            _px("name_size", "typographie", "Taille noms", "--ts-name-size", 36, 20, 50),
+            _px("spacing", "geometrie", "Espacement entre blocs", "--ts-spacing", 60, 20, 120),
+                        _px("glow", "ombre", "Intensité lumineuse (%)", "--ts-glow-intensity", 0, 0, 100, 5, ""),
+            _px("credit_line_alpha", "ombre", "Opacité du soulignement", "--ts-cred-line-alpha", 25, 0, 100, 5, "%"),
+            _px("credit_glow_alpha", "ombre", "Opacité du balayage", "--ts-cred-glow-alpha", 20, 0, 100, 5, "%"),
+        ],
+        "selects": [
+            _font_sel(),
+            _sel("align_x", "geometrie", "Position horizontale",
+                 [("left", "Gauche"), ("center", "Centre"), ("right", "Droite")],
+                 "center", css="--ts-align-x"),
+        ]
     },
 }
 
@@ -387,7 +395,7 @@ GROUP_LABELS = {"couleurs": "COULEURS", "geometrie": "POSITION",
 
 
 def visual_defs(tpl):
-    d = VISUAL.get(tpl) or VISUAL["invite"]
+    d = VISUAL.get(tpl) or VISUAL["titre"]
     return d["colors"] + d["numbers"] + d["selects"]
 
 
@@ -496,7 +504,6 @@ def visual_style(tpl, params):
     if not clean:
         return ""
     _resolve_anim(tpl, clean)
-    _resolve_model(tpl, clean)
     _clamp_anim(tpl, clean)
     lines, seen = [], set()
 
@@ -660,14 +667,6 @@ def _set_text(src, cls, value):
     return new
 
 
-def _set_fs_texts(src, values):
-    blocks = list(re.finditer(r'[ \t]*<div class="fs-text"[^>]*>.*?</div>', src, re.S))
-    if not blocks:
-        print("[avertissement] marqueur fs-text introuvable")
-        return src
-    new = "\n".join('<div class="fs-text" lang="ar">%s</div>' % html_lib.escape(v)
-                    for v in values)
-    return src[:blocks[0].start()] + new + src[blocks[-1].end():]
 
 
 # =============================================================================
@@ -866,7 +865,7 @@ def compose_html(tpl, params=None):
     """Compose le HTML du template : contenu injecte + parametres visuels.
     Le fichier source n'est JAMAIS modifie ; apercu et rendu .mov passent
     par ici -> exactement les memes valeurs dans les deux cas."""
-    info = TEMPLATES.get(tpl) or TEMPLATES["invite"]
+    info = TEMPLATES.get(tpl) or TEMPLATES["titre"]
     path = os.path.join(BASE_DIR, info["file"])
     with io.open(path, encoding="utf-8") as fh:
         src = fh.read()
@@ -875,21 +874,7 @@ def compose_html(tpl, params=None):
     p.update(params or {})
     lim = LIMITS.get(tpl, {})
 
-    if tpl == "invite":
-        m = str(p.get("model", p.get("shape", "original"))).strip().lower()
-        allowed = [opt[0] for opt in MODEL_OPTIONS] + ["original"]
-        if m not in allowed:
-            m = "original"
-        if m != "original":
-            src = src.replace('<div class="ts-lower">', f'<div class="ts-lower" data-model="{html_lib.escape(m)}">', 1)
-        src = _set_text(src, "ts-badge-ar", clean_text(p.get("badge_ar"), lim["badge_ar"]) or DEFAULTS["invite"]["badge_ar"])
-        src = _set_text(src, "ts-badge-la", clean_text(p.get("badge_la"), lim["badge_la"]) or DEFAULTS["invite"]["badge_la"])
-        src = _set_text(src, "ts-name", clean_text(p.get("nom"), lim["nom"]) or DEFAULTS["invite"]["nom"])
-        src = _set_text(src, "ts-role", clean_text(p.get("role"), lim["role"]) or DEFAULTS["invite"]["role"])
-    elif tpl == "nom":
-        src = _set_text(src, "ts-name", clean_text(p.get("nom"), lim["nom"]) or DEFAULTS["nom"]["nom"])
-        src = _set_text(src, "ts-role", clean_text(p.get("role"), lim["role"]) or DEFAULTS["nom"]["role"])
-    elif tpl == "titre":
+    if tpl == "titre":
         src = _set_text(src, "ts-titleband-main", clean_text(p.get("title_main"), lim["title_main"]) or DEFAULTS["titre"]["title_main"])
         src = _set_text(src, "ts-titleband-sub", clean_text(p.get("title_sub"), lim["title_sub"]) or DEFAULTS["titre"]["title_sub"])
         if int(p.get("show_title_top", 1)) == 0:
@@ -922,22 +907,6 @@ def compose_html(tpl, params=None):
             src = src.replace('class="ts-s2-role"', 'class="ts-s2-role is-arabic"', 1)
     elif tpl == "bug":
         src = _set_text(src, "ts-bug-text", clean_text(p.get("texte"), lim["texte"]) or DEFAULTS["bug"]["texte"])
-    elif tpl == "fullscreen":
-        src = _set_text(src, "ts-badge-ar", clean_text(p.get("tab"), lim["tab"]) or DEFAULTS["fullscreen"]["tab"])
-        src = _set_text(src, "fs-lead", clean_text(p.get("lead"), lim["lead"]) or DEFAULTS["fullscreen"]["lead"])
-        raw = p.get("textes")
-        if isinstance(raw, str):
-            raw = [ln for ln in raw.split("\n")]
-        paras = []
-        for item in (raw or []):
-            t = clean_text(item, MAX_PARA_LEN)
-            if t:
-                paras.append(t)
-            if len(paras) >= MAX_PARAS:
-                break
-        if not paras:
-            paras = list(DEFAULTS["fullscreen"]["textes"])
-        src = _set_fs_texts(src, paras)
     elif tpl == "generique":
         # texte structure (# = categorie) -> HTML .cr-block echappe, injecte
         # entre les marqueurs du template (fichier source jamais modifie)
@@ -954,6 +923,16 @@ def compose_html(tpl, params=None):
     fstyle = font_style(tpl, p)           # "" si police par defaut (inchange)
     if fstyle:
         src = src.replace("</head>", fstyle + "</head>", 1)
+    def _cache_buster(m):
+        css_rel = m.group(1)
+        css_full = os.path.join(BASE_DIR, css_rel)
+        try:
+            mtime = int(os.path.getmtime(css_full))
+        except OSError:
+            mtime = 0
+        return f'href="{css_rel}?v={mtime}"'
+    
+    src = re.sub(r'href="([^"]+\.css)"', _cache_buster, src)
     return src
 
 
@@ -1109,7 +1088,7 @@ def render_one(page, html_path, out_name, total, skip_preview, on_frame=None):
 
 def run_render(tpl, params=None, frames=None, skip_preview=False, on_frame=None):
     """Rend un template. Retourne (mov, mp4, total, qc). Supprime les fichiers temporaires."""
-    info = TEMPLATES.get(tpl) or TEMPLATES["invite"]
+    info = TEMPLATES.get(tpl) or TEMPLATES["titre"]
     total = template_frames(tpl, params, frames)
     html_path = build_render_html(tpl, params)
     frames_dir = None
@@ -1325,7 +1304,7 @@ def queue_snapshot():
 
 def queue_add(tpl, params, frames=None):
     """Ajoute un rendu (snapshot des params) et lance le worker si besoin."""
-    tpl = tpl if tpl in TEMPLATES else "invite"
+    tpl = tpl if tpl in TEMPLATES else "titre"
     with QLOCK:
         QSEQ["id"] += 1
         job = {"id": QSEQ["id"], "tpl": tpl, "label": TEMPLATES[tpl]["label"],
@@ -1467,7 +1446,7 @@ def serve(open_browser=True):
 
         def _safe_tpl(self, value):
             tpl = (value or "").strip().lower()
-            return tpl if tpl in TEMPLATES else "invite"
+            return tpl if tpl in TEMPLATES else "titre"
 
         # ---- GET -------------------------------------------------------
         def do_GET(self):

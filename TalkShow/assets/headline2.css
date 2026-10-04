@@ -1,0 +1,192 @@
+/* ==========================================================================
+   TITRE 2 — headline éditorial HAUT (template_titre2.html)
+
+   ISOLATION STRICTE
+   - Fichier DEDIE : seul template_titre2.html le charge. talkshow.css n'est
+     PAS modifie ; Titre 1 / Invite / Nom / Bug / Generique ne lisent jamais
+     ce fichier -> modifier Titre 2 ne peut rien impacter ailleurs.
+   - Namespace unique : .ts-headline2*  /  variables --ts-t2-*
+   - Chaque var() a pour repli la valeur par defaut Python (VISUAL["titre2"]) :
+     apercu/rendu identiques meme quand aucun parametre n'est injecte.
+
+   POSITION
+   - Ancre HAUT : top = --ts-t2-pos-y (distance depuis le HAUT de l'ecran).
+     Python emet toujours la variable AVEC son unite ("96px") : jamais de
+     calc(N * 1px) (piege deja rencontre sur Titre 1, valeur invalide).
+
+   TYPOGRAPHIE
+   - Latin : Oswald (condensee, look headline TV) ; arabe : Kufi 700 maximum.
+     Oswald n'a aucun glyphe arabe -> l'arabe retombe naturellement sur Kufi.
+   - font-synthesis: none (herite de .canvas, repete ici) : pas de faux gras.
+   - letter-spacing coupe sur l'arabe (.is-arabic) : un espacement casse les
+     liaisons des lettres arabes.
+   ========================================================================== */
+
+@font-face {
+    font-family: 'TSH2Latin';
+    src: url('fonts/Oswald-Variable.ttf') format('truetype');
+    font-weight: 200 700;
+    font-style: normal;
+    font-display: block;
+}
+
+/* --- conteneur : pleine largeur, centre le cartouche, ancre BAS ---------- */
+.ts-headline2 {
+    position: absolute;
+    top: auto;
+    bottom: var(--ts-t2-pos-y, 96px);
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* --- enveloppe animee : largeur utile centree (pas pleine largeur) -------- */
+.ts-headline2-wrap {
+    position: relative;
+    width: fit-content;
+    max-width: var(--ts-t2-width, 1500px);
+    opacity: 0;                               /* Standby : hors antenne */
+}
+
+body.playing .ts-headline2-wrap {
+    animation: 
+        tsH2In var(--ts-t2-in-dur, 700ms) cubic-bezier(0.22, 0.8, 0.24, 1) 80ms forwards,
+        tsH2Out 560ms ease-in-out 4400ms forwards;
+}
+
+/* Entree douce : legere descente (-14 px) + echelle 0.985 -> 1. Etat final
+   sans aucune transformation (texte rendu net au repos). */
+@keyframes tsH2In {
+    from { opacity: 0; transform: translateY(-14px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+
+@keyframes tsH2Out {
+    0% { opacity: 1; transform: translateY(0px); }
+    100% { opacity: 0; transform: translateY(20px); }
+}
+
+/* --- cartouche : fond brun/noir, coins arrondis, liseré fin, relief ------- */
+.ts-headline2-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: var(--ts-t2-height, 88px);
+    max-width: 100%;
+    padding: 0 var(--ts-t2-padding-x, 44px) 4px;   /* 4 px bas = reserve du filet or */
+    border: 2px solid color-mix(in srgb, var(--ts-t2-border, #FF6A00) calc(var(--ts-t2-border-alpha, 75) * 1%), transparent);
+    border-radius: var(--ts-t2-radius, 22px);
+    background: color-mix(in srgb, var(--ts-t2-bg, #15110E) calc(var(--ts-t2-bg-alpha, 94) * 1%), transparent);
+    background-clip: padding-box;
+    overflow: hidden;
+    box-shadow:
+        /* relief interne discret : liseré clair haut, ombre fine bas */
+        inset 0 1px 0 rgba(255, 255, 255, calc(var(--ts-t2-highlight-alpha, 10) * 0.012)),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+        /* ombre portee propre */
+        0 10px 26px rgba(0, 0, 0, calc(var(--ts-t2-shadow-alpha, 45) * 0.01)),
+        /* halo ambre tres retenu */
+        0 0 22px color-mix(in srgb, var(--ts-t2-glow-color, #FF8C1A) 14%, transparent);
+}
+
+/* lumiere douce du haut (verre fumé) : pilotee par title2_highlight_alpha */
+.ts-headline2-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, calc(var(--ts-t2-highlight-alpha, 10) * 0.01)) 0%,
+        rgba(255, 255, 255, 0) 52%);
+    pointer-events: none;
+}
+
+/* --- filet doré/amber du bas (signature « émission TV ») ------------------ */
+.ts-headline2-accent {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    z-index: 2;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--ts-t2-border, #FF6A00) 12%,
+        var(--ts-t2-glow-color, #FF8C1A) 50%,
+        var(--ts-t2-border, #FF6A00) 88%,
+        transparent 100%);
+    opacity: 0;
+}
+
+body.playing .ts-headline2-accent {
+    animation: tsH2Accent calc(var(--ts-t2-in-dur, 700ms) * 0.9) ease-out calc(var(--ts-t2-in-dur, 700ms) * 0.25 + 80ms) both;
+}
+
+@keyframes tsH2Accent {
+    from { opacity: 0; transform: scaleX(0.25); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- reflet : UN seul passage lumineux, horizontal, sous le texte --------- */
+.ts-headline2-sheen {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 34%;
+    z-index: 1;
+    background: linear-gradient(100deg,
+        transparent 0%,
+        color-mix(in srgb, var(--ts-t2-glow-color, #FF8C1A) 55%, #FFFFFF) 50%,
+        transparent 100%);
+    opacity: 0;
+    transform: translateX(-130%) skewX(-18deg);
+    pointer-events: none;
+}
+
+body.playing .ts-headline2-sheen {
+    animation: tsH2Sheen 1100ms cubic-bezier(0.4, 0, 0.2, 1) calc(var(--ts-t2-in-dur, 700ms) * 0.85) 1 both;
+}
+
+/* l'opacité crête = 1.6 x highlight_alpha (reste discret, jamais criard) */
+@keyframes tsH2Sheen {
+    0%   { opacity: 0; transform: translateX(-130%) skewX(-18deg); }
+    18%  { opacity: calc(var(--ts-t2-highlight-alpha, 10) * 0.016); }
+    82%  { opacity: calc(var(--ts-t2-highlight-alpha, 10) * 0.016); }
+    100% { opacity: 0; transform: translateX(420%) skewX(-18deg); }
+}
+
+/* --- texte principal : une seule ligne, centrée --------------------------- */
+.ts-headline2-text {
+    position: relative;
+    z-index: 3;
+    width: max-content;
+    white-space: nowrap;
+    text-align: center;
+    font-family: 'TSH2Latin', 'Kufi', 'IBMPlexArabic', sans-serif;
+    font-weight: var(--ts-t2-weight, 700);
+    font-size: var(--ts-t2-text-size, 50px);
+    letter-spacing: var(--ts-t2-letter-spacing, 1px);
+    line-height: 1.15;
+    text-transform: uppercase;
+    color: var(--ts-t2-text-color, #FFFFFF);
+    font-synthesis: none;
+    /* wash global validé (même formule que les autres templates) */
+    text-shadow:
+        0 1px calc(var(--ts-wash-radius, 6px) * 0.33) rgba(0, 0, 0, calc(var(--ts-wash-intensity, 20) * 0.0070)),
+        0 2px var(--ts-wash-radius, 6px)              rgba(0, 0, 0, calc(var(--ts-wash-intensity, 20) * 0.0032)),
+        0 0   calc(var(--ts-wash-radius, 6px) * 2.33) rgba(0, 0, 0, calc(var(--ts-wash-intensity, 20) * 0.0016));
+}
+
+/* arabe : jamais d'espacement entre les lettres (casse les liaisons) */
+.ts-headline2-text.is-arabic {
+    letter-spacing: 0;
+    text-transform: none;
+}

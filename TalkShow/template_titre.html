@@ -33,7 +33,7 @@
             var cs = getComputedStyle(document.documentElement);
             var inDur = parseFloat(cs.getPropertyValue("--ts-in-dur")) || 400;
             var outDur = parseFloat(cs.getPropertyValue("--ts-out-dur")) || 400;
-            var holdMs = parseFloat(cs.getPropertyValue("--ts-hold")) || 4600;
+            var holdMs = parseFloat(cs.getPropertyValue("--ts-hold")) || 4080;
             var outTo = cs.getPropertyValue("--ts-out-to") || "translateY(50px)";
             
             // Animation WAAPI (Fade-in + léger slide-up)
@@ -45,6 +45,7 @@
             ];
             
             band.animate(kf, {
+                delay: 80,
                 duration: inDur + holdMs + outDur,
                 easing: "ease-in-out",
                 fill: "forwards"
