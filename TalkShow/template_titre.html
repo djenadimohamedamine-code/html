@@ -31,10 +31,20 @@
             started = true;
             
             var cs = getComputedStyle(document.documentElement);
-            var inDur = parseFloat(cs.getPropertyValue("--ts-in-dur")) || 400;
-            var outDur = parseFloat(cs.getPropertyValue("--ts-out-dur")) || 400;
-            var holdMs = parseFloat(cs.getPropertyValue("--ts-hold")) || 4080;
-            var outTo = cs.getPropertyValue("--ts-out-to") || "translateY(50px)";
+
+            /*
+             * Timeline propre à Titre 1.
+             * Ne pas utiliser les variables globales --ts-in-dur / --ts-out-dur /
+             * --ts-hold / --ts-out-to : elles appartiennent au Master Invite 10 s.
+             */
+            var inDur = parseFloat(cs.getPropertyValue("--ts-title1-in-dur")) || 400;
+            var holdMs = parseFloat(cs.getPropertyValue("--ts-title1-hold")) || 4080;
+            var outDur = parseFloat(cs.getPropertyValue("--ts-title1-out-dur")) || 400;
+            var outTo = (cs.getPropertyValue("--ts-title1-out-to") || "").trim() || "translateY(50px)";
+
+            /* Pré-roll 80 ms réellement transparent. */
+            band.style.opacity = "0";
+            band.style.transform = outTo;
             
             // Animation WAAPI (Fade-in + léger slide-up)
             var kf = [
@@ -48,7 +58,7 @@
                 delay: 80,
                 duration: inDur + holdMs + outDur,
                 easing: "ease-in-out",
-                fill: "forwards"
+                fill: "both"
             });
         }
 

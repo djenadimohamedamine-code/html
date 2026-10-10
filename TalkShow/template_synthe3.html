@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — Synthé 3 Glass</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/synthe3.css">
+</head>
+<body>
+
+<div class="canvas">
+    <div class="ts-s3">
+        <div class="ts-s3-glass">
+            <div class="ts-s3-name" dir="auto">محمد أمين جنادي</div>
+            <div class="ts-s3-line"></div>
+            <div class="ts-s3-role" dir="auto">مخرج البرنامج</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var synth = document.querySelector('.ts-s3');
+    var nameTxt = document.querySelector('.ts-s3-name');
+    var roleTxt = document.querySelector('.ts-s3-role');
+    if (!synth) return;
+
+    function fit() {
+        if (!nameTxt || !roleTxt) return;
+        var baseName = 78, baseRole = 50;
+        var maxW = 1550;
+        var curW = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
+        var ratio = 1.0;
+        
+        while (curW > maxW && ratio > 0.5) {
+            ratio -= 0.05;
+            nameTxt.style.fontSize = Math.floor(baseName * ratio) + 'px';
+            roleTxt.style.fontSize = Math.floor(baseRole * ratio) + 'px';
+            curW = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
+        }
+    }
+
+    var playing = false;
+
+    function play() {
+        if (playing || !synth) return;
+        playing = true;
+
+        var inDur = 550;
+        var holdMs = 4000;
+        var outDur = 500;
+        var total = inDur + holdMs + outDur;
+
+        var kf = [
+            { opacity: 0, transform: 'translateX(-120px)', offset: 0 },
+            { opacity: 1, transform: 'translateX(0)',      offset: inDur / total },
+            { opacity: 1, transform: 'translateX(0)',      offset: (inDur + holdMs) / total },
+            { opacity: 0, transform: 'translateX(-120px)', offset: 1 }
+        ];
+
+        synth.animate(kf, {
+            delay: 80,
+            duration: total,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            fill: 'forwards'
+        });
+    }
+
+    function arm() {
+        if (!document.body) return;
+        if (document.body.classList.contains('playing')) { fit(); play(); return; }
+        var obs = new MutationObserver(function () {
+            if (playing) { obs.disconnect(); return; }
+            if (document.body.classList.contains('playing')) {
+                obs.disconnect();
+                fit();
+                play();
+            }
+        });
+        obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(arm);
+    } else {
+        arm();
+    }
+    window.addEventListener('load', fit);
+})();
+</script>
+
+</body>
+</html>

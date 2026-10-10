@@ -508,6 +508,14 @@ const TPLS = {
             {val: "with_titre2", label: "AVEC TITRE 2 (Position haute combinée)"}
         ]}
     ]},
+    titre3: { label: "Titre 3 (V3)", fields: [
+        { k: "title3_main", l: "Titre principal (arabe)", max: 100, dir: "rtl" },
+        { k: "title3_sub",  l: "Sous-titre (arabe)", max: 60, dir: "rtl" },
+    ]},
+    synthe3: { label: "Synthé 3 (V3)", fields: [
+        { k: "s3_name", l: "Nom (arabe)", max: 40, dir: "rtl" },
+        { k: "s3_role", l: "Fonction (arabe)", max: 60, dir: "rtl" },
+    ]},
     generique: { label: "Générique", fields: [
         { k: "credits", l: "Générique (# = catégorie)", max: 6000, dir: "ltr", type: "textarea", rows: 12, lines: 0 },
     ]},
@@ -521,6 +529,8 @@ const DEFAULTS = {
     synthe1: { s1_name: "محمد أمين", s1_role: "مقدم البرنامج",  },
     titre2: { title2_text: "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟" },
     synthe2: { s2_name: "محمد أمين", s2_role: "محلل سياسي", s2_layout: "solo" },
+    titre3: { title3_main: "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟", title3_sub: "موضوع النقاش" },
+    synthe3: { s3_name: "محمد أمين جنادي", s3_role: "مخرج البرنامج" },
     bug: { texte: "TALKSHOW" },
     generique: {
         credits: [
@@ -597,10 +607,41 @@ function initContent() {
         }
     } catch(e) {}
 }
+let syncTimer = null;
+function syncStateToServer() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(async () => {
+        try {
+            // Snapshot COMPLET : les champs jamais modifiés restent absents de
+            // savedContent, donc on fusionne les DEFAULTS avec les valeurs
+            // réellement sauvegardées avant d'envoyer l'état au backend.
+            const effectiveContent = {};
+            for (const tpl of Object.keys(TPLS)) {
+                effectiveContent[tpl] = Object.assign(
+                    {},
+                    DEFAULTS[tpl] || {},
+                    savedContent[tpl] || {}
+                );
+            }
+            await fetch("/state", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: effectiveContent,
+                    visualNum: visualNum,
+                    visualSel: visualSel,
+                    colors: colors
+                })
+            });
+        } catch(e) {}
+    }, 1000);
+}
+
 function saveContent(tpl, key, val) {
     savedContent[tpl] = savedContent[tpl] || {};
     savedContent[tpl][key] = val;
     try { localStorage.setItem("talkshow_content_custom", JSON.stringify(savedContent)); } catch(e) {}
+    syncStateToServer();
 }
 
 function esc(s) {
@@ -642,6 +683,24 @@ function updateHint(el, hex) {
 function initVisual() {
     colors = Object.assign({}, SCHEMA.palettes.pop.colors);
     customPalette = null;
+
+    // Migration ciblée : l'ancien défaut Synthé 1 (4600 ms) restait parfois
+    // persisté dans localStorage et écrasait le nouveau défaut broadcast 4080 ms.
+    // On ne touche qu'à CETTE ancienne valeur exacte, une seule fois, sans
+    // réinitialiser les autres réglages validés du panneau.
+    try {
+        const migKey = "ts_migrated_s1_hold_4080";
+        if (!localStorage.getItem(migKey)) {
+            const raw = localStorage.getItem(LS_VIS_KEY);
+            const saved = raw ? JSON.parse(raw) : null;
+            if (saved && saved.numbers && saved.numbers.synthe1 &&
+                saved.numbers.synthe1.s1_hold === 4600) {
+                saved.numbers.synthe1.s1_hold = 4080;
+                localStorage.setItem(LS_VIS_KEY, JSON.stringify(saved));
+            }
+            localStorage.setItem(migKey, "1");
+        }
+    } catch (e) {}
     
     // CORRECTION : Recuperer d'abord le modele actif sauvegarde
     let currentModel = "original";
@@ -730,6 +789,7 @@ function saveVisual() {
         localStorage.setItem(LS_VIS_KEY,
             JSON.stringify({ numbers: visualNum, selects: visualSel }));
     } catch (e) {}
+    syncStateToServer();
 }
 
 function savePalette() {
@@ -818,6 +878,7 @@ function buildTabs() {
     const groups = [
         { title: "FAMILLE 1", keys: ["titre", "synthe1"] },
         { title: "FAMILLE 2", keys: ["titre2", "synthe2"] },
+        { title: "FAMILLE 3", keys: ["titre3", "synthe3"] },
         { title: "AUTRES", keys: ["generique", "bug"] }
     ];
     
@@ -1565,6 +1626,7 @@ async function queueStart() {
         return;
     }
     initContent();
+    setTimeout(syncStateToServer, 1000);
     initVisual();
     buildTabs();
     initPrevBg();               // fond d'apercu (damier defaut) AVANT le 1er load

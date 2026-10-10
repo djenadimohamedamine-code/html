@@ -72,6 +72,8 @@ TEMPLATES = {
     "synthe1":    {"file": "template_synthe1.html",    "label": "Synthé 1",      "out": "Synthe1",    "frames": 250},
     "titre2":     {"file": "template_titre2.html",     "label": "Titre 2",       "out": "Titre2",     "frames": 250},
     "synthe2":    {"file": "template_synthe2.html",    "label": "Synthé 2",      "out": "Synthe2",    "frames": 250},
+    "titre3":     {"file": "template_titre3.html",     "label": "Titre 3 (V3)",  "out": "Titre3",     "frames": 250},
+    "synthe3":    {"file": "template_synthe3.html",    "label": "Synthé 3 (V3)", "out": "Synthe3",    "frames": 250},
     "bug":        {"file": "template_bug.html",        "label": "Bug permanent", "out": "Bug",        "frames": 250},
     "generique":  {"file": "template_generique.html",  "label": "Générique",     "out": "Generique",  "frames": 250},
 }
@@ -106,8 +108,16 @@ DEFAULTS = {
     },
     "synthe2": {
         "s2_name": "محمد أمين",
-        "s2_role": "محلل سياسي",
+        "s2_role": "مخرج فني",
         "s2_layout": "solo"
+    },
+    "titre3": {
+        "title3_main": "الإصلاح الاقتصادي: كيف نخرج من الأزمة؟",
+        "title3_sub": "موضوع النقاش"
+    },
+    "synthe3": {
+        "s3_name": "محمد أمين جنادي",
+        "s3_role": "مخرج البرنامج"
     },
     "bug": {
         "texte": "TALKSHOW",
@@ -152,7 +162,9 @@ DEFAULTS = {
 LIMITS = {
     "titre": {"title_main": 80, "title_sub": 50},
     "titre2": {"title2_text": 90},
+    "titre3": {"title3_main": 100, "title3_sub": 60},
         "synthe2": {"s2_name": 40, "s2_role": 60},
+    "synthe3": {"s3_name": 40, "s3_role": 60},
     "synthe1": {"s1_name": 40, "s1_role": 60},
     "bug": {"texte": 30},
     "generique": {"credits": 6000},   # garde-fou : lignes illimitees en pratique
@@ -337,7 +349,7 @@ VISUAL = {
     "synthe1": {
         "colors": [],
         "numbers": [
-            _px("s1_hold", "animation", "Durée maintien (ms)", "--ts-s1-hold", 4600, 100, 9500, 10, "ms"),
+            _px("s1_hold", "animation", "Durée maintien (ms)", "--ts-s1-hold", 4080, 100, 9500, 10, "ms"),
         ],
         "selects": [],
     },
@@ -348,6 +360,16 @@ VISUAL = {
         "selects": [],
     },
     "synthe2": {
+        "colors": [],
+        "numbers": [],
+        "selects": [],
+    },
+    "titre3": {
+        "colors": [],
+        "numbers": [],
+        "selects": [],
+    },
+    "synthe3": {
         "colors": [],
         "numbers": [],
         "selects": [],
@@ -885,6 +907,11 @@ def compose_html(tpl, params=None):
         # arabe : letter-spacing coupe (casse les liaisons) + pas de majuscules
         if re.search("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", t2):
             src = src.replace('class="ts-headline2-text"', 'class="ts-headline2-text is-arabic"', 1)
+    elif tpl == "titre3":
+        main = clean_text(p.get("title3_main"), lim["title3_main"]) or DEFAULTS["titre3"]["title3_main"]
+        sub = clean_text(p.get("title3_sub"), lim["title3_sub"]) or DEFAULTS["titre3"]["title3_sub"]
+        src = _set_text(src, "ts-t3-main", main)
+        src = _set_text(src, "ts-t3-sub", sub)
     elif tpl == "synthe1":
         # SYNTHE 1: Toujours combiné avec Titre 1 (plus de mode SOLO)
         src = src.replace('class="ts-s1"', 'class="ts-s1 layout-with-titre1"')
@@ -905,6 +932,11 @@ def compose_html(tpl, params=None):
             src = src.replace('class="ts-s2-name"', 'class="ts-s2-name is-arabic"', 1)
         if re.search("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", role):
             src = src.replace('class="ts-s2-role"', 'class="ts-s2-role is-arabic"', 1)
+    elif tpl == "synthe3":
+        name = clean_text(p.get("s3_name"), lim["s3_name"]) or DEFAULTS["synthe3"]["s3_name"]
+        role = clean_text(p.get("s3_role"), lim["s3_role"]) or DEFAULTS["synthe3"]["s3_role"]
+        src = _set_text(src, "ts-s3-name", name)
+        src = _set_text(src, "ts-s3-role", role)
     elif tpl == "bug":
         src = _set_text(src, "ts-bug-text", clean_text(p.get("texte"), lim["texte"]) or DEFAULTS["bug"]["texte"])
     elif tpl == "generique":
@@ -964,16 +996,7 @@ def encode(frames_dir, out_name, total, skip_preview=False):
     # 1080i50 "meme instant" — validé par mesure automatique A/B (combing A=18.53
     # FILTRE 50i : SÉPARATION GÉNÉRIQUE vs SYNTHÉS FIXES
     if 'generique' in frames_dir.lower():
-        # Générique (défilant) : Hack mathématique anti-scintillement
-        vf_mov = (
-            f"{scale},fps=25,format=rgba,"
-            "geq="
-            "r='p(X,2*floor(Y/2))':"
-            "g='p(X,2*floor(Y/2))':"
-            "b='p(X,2*floor(Y/2))':"
-            "a='p(X,2*floor(Y/2))',"
-            "setparams=field_mode=tff"
-        )
+        vf_mov = f"{scale},format=rgba,tinterlace=mode=interleave_top" 
     else:
         # Synthés fixes (Invite, etc.) : Entrelacement broadcast pur (tinterlace)
         vf_mov = f"{scale},format=rgba,tinterlace=mode=interleave_top"
@@ -1251,6 +1274,7 @@ QLOCK = threading.RLock()              # reentrant : _queue_save() partout
 QWORKER = {"alive": False}             # un seul worker a la fois
 QSEQ = {"id": 0}
 QUEUE_FILE = os.path.join(BASE_DIR, "PANNEAU_DE_CONTROLE", "queue.json")
+STATE_FILE = os.path.join(BASE_DIR, "PANNEAU_DE_CONTROLE", "current_state.json")
 QSTATES = ("pending", "running", "done", "error")   # ⏳ 🔄 ✅ ❌
 
 
@@ -1548,9 +1572,11 @@ def serve(open_browser=True):
         def do_POST(self):
             u = urlparse(self.path)
             size = int(self.headers.get("Content-Length") or 0)
+            print(f"do_POST: path={u.path} size={size}")
             try:
                 payload = json.loads(self.rfile.read(size).decode("utf-8") or "{}")
-            except Exception:
+            except Exception as e:
+                print(f"Error reading payload: {e}")
                 payload = {}
 
             if u.path == "/render":
@@ -1597,6 +1623,25 @@ def serve(open_browser=True):
             if u.path == "/queue/start":
                 started = _queue_start()
                 self._json(200, dict(queue_snapshot(), ok=True, started=started))
+                return
+
+            if u.path == "/state":
+                try:
+                    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+                    tmp_state = STATE_FILE + ".tmp"
+                    with open(tmp_state, "w", encoding="utf-8") as fh:
+                        json.dump(payload, fh, indent=1, ensure_ascii=False)
+                        fh.flush()
+                        os.fsync(fh.fileno())
+                    os.replace(tmp_state, STATE_FILE)
+                    self._json(200, {"ok": True})
+                except Exception as e:
+                    try:
+                        if os.path.exists(STATE_FILE + ".tmp"):
+                            os.remove(STATE_FILE + ".tmp")
+                    except Exception:
+                        pass
+                    self._json(500, {"ok": False, "error": str(e)})
                 return
 
             self._json(404, {"error": "route inconnue"})

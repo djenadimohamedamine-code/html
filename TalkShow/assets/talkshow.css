@@ -722,14 +722,14 @@ body.playing .ts-motion {
     color: var(--ts-badge-bg);
     text-transform: uppercase;
     white-space: nowrap;
-    padding-bottom: 0.35em;
-    margin-bottom: 0.1em;
+    padding-bottom: 0;
+    margin-bottom: 0;
 }
 
 .cr-cat::after {
     content: '';
     position: absolute;
-    bottom: 0.1em;
+    bottom: -0.35em;
     left: 50%;
     transform: translateX(-50%);
     height: 2px;
@@ -741,7 +741,7 @@ body.playing .ts-motion {
 .cr-cat::before {
     content: '';
     position: absolute;
-    bottom: calc(0.1em - 2px); /* Ligne + decalage optique vers le bas */
+    bottom: calc(-0.35em - 2px); /* Ligne + decalage optique vers le bas */
     left: 50%;
     transform: translateX(-50%);
     height: 3px;

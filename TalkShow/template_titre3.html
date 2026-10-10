@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>TalkShow — Titre 3 Glass</title>
+    <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/titre3.css">
+</head>
+<body>
+
+<div class="canvas">
+    <div class="ts-t3">
+        <div class="ts-t3-glass">
+            <div class="ts-t3-main" dir="auto">الإصلاح الاقتصادي: كيف نخرج من الأزمة؟</div>
+            <div class="ts-t3-line"></div>
+            <div class="ts-t3-sub" dir="auto">موضوع النقاش</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var title = document.querySelector('.ts-t3');
+    var mainTxt = document.querySelector('.ts-t3-main');
+    var subTxt = document.querySelector('.ts-t3-sub');
+    if (!title) return;
+
+    function fit() {
+        if (!mainTxt || !subTxt) return;
+        var baseMain = 68, baseSub = 38;
+        var maxW = 1320;
+        mainTxt.style.fontSize = baseMain + 'px';
+        subTxt.style.fontSize = baseSub + 'px';
+        var ratio = 1.0;
+        var curW = Math.max(mainTxt.offsetWidth, subTxt.offsetWidth);
+        while (curW > maxW && ratio > 0.55) {
+            ratio -= 0.05;
+            mainTxt.style.fontSize = Math.floor(baseMain * ratio) + 'px';
+            subTxt.style.fontSize = Math.floor(baseSub * ratio) + 'px';
+            curW = Math.max(mainTxt.offsetWidth, subTxt.offsetWidth);
+        }
+    }
+
+    var playing = false;
+    function play() {
+        if (playing || !title) return;
+        playing = true;
+        var inDur = 550;
+        var holdMs = 4000;
+        var outDur = 500;
+        var total = inDur + holdMs + outDur;
+        var kf = [
+            { opacity: 0, transform: 'translateX(-140px)', offset: 0 },
+            { opacity: 1, transform: 'translateX(0)', offset: inDur / total },
+            { opacity: 1, transform: 'translateX(0)', offset: (inDur + holdMs) / total },
+            { opacity: 0, transform: 'translateX(-140px)', offset: 1 }
+        ];
+        title.animate(kf, {
+            delay: 80,
+            duration: total,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            fill: 'forwards'
+        });
+    }
+
+    function arm() {
+        if (!document.body) return;
+        if (document.body.classList.contains('playing')) { fit(); play(); return; }
+        var obs = new MutationObserver(function () {
+            if (playing) { obs.disconnect(); return; }
+            if (document.body.classList.contains('playing')) {
+                obs.disconnect();
+                fit();
+                play();
+            }
+        });
+        obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(arm);
+    } else {
+        arm();
+    }
+    window.addEventListener('load', fit);
+})();
+</script>
+
+</body>
+</html>
