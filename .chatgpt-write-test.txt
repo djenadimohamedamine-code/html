@@ -1,2 +1,0 @@
-ChatGPT GitHub write access test.
-Created only on test/github-agent-write.
