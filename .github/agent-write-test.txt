@@ -1,2 +1,0 @@
-GitHub connector write test.
-No application code was modified.
