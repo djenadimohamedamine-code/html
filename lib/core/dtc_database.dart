@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 class DtcInfo {
   final String code;
   final String title;
+  final String? titleEn;
   final String msg;
   final String severity; // 'critique', 'alerte', 'info'
   final String category;
@@ -18,6 +19,7 @@ class DtcInfo {
   const DtcInfo({
     required this.code,
     required this.title,
+    this.titleEn,
     required this.msg,
     required this.severity,
     required this.category,
@@ -72,18 +74,26 @@ class DtcDatabase {
 
     if (entry != null && entry is Map<String, dynamic>) {
       final title = entry['title'] as String? ?? entry['msg'] as String? ?? cleanCode;
+      final titleEn = entry['title_en'] as String?;
       final msg = entry['msg'] as String? ?? title;
       final sev = entry['sev'] as String? ?? 'info';
       final cat = entry['cat'] as String? ?? _categorize(cleanCode);
-      final desc = entry['desc'] as String? ?? _generateDefaultDesc(cleanCode, title);
-      final causes = (entry['causes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? _generateDefaultCauses(cleanCode);
-      final symptoms = (entry['symptoms'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? _generateDefaultSymptoms(cleanCode);
-      final checks = (entry['checks'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? _generateDefaultChecks(cleanCode);
-      final note = entry['note'] as String? ?? '';
+      final desc = entry['desc'] as String? ?? 
+          (titleEn != null && titleEn.isNotEmpty 
+              ? "Titre SAE J2012 : $titleEn." 
+              : "Description constructeur détaillée non disponible.");
+      
+      // Ne jamais inventer des causes ou contrôles non documentés
+      final causes = (entry['causes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final symptoms = (entry['symptoms'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final checks = (entry['checks'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final note = entry['note'] as String? ?? 
+          "Rappel atelier : Ne remplacez pas de composant sans diagnostic électrique ou physique préalable. Vérifiez le faisceau, la masse et l'alimentation.";
 
       return DtcInfo(
         code: cleanCode,
         title: title,
+        titleEn: titleEn,
         msg: msg,
         severity: sev,
         category: cat,
@@ -115,17 +125,17 @@ class DtcDatabase {
     return DtcInfo(
       code: code,
       title: title,
+      titleEn: null,
       msg: msg,
       severity: isManufacturer ? 'alerte' : 'info',
       category: cat,
-      description: 'Ce code a été remonté par le calculateur du véhicule. ' +
-          (isManufacturer
-              ? 'Il s\'agit d\'un code propre au groupe General Motors / Daewoo régissant le sous-système $cat.'
-              : 'Ce code correspond à la famille standard SAE J2012 pour le système $cat.'),
-      causes: _generateDefaultCauses(code),
-      symptoms: _generateDefaultSymptoms(code),
-      checks: _generateDefaultChecks(code),
-      note: 'Pour les codes constructeurs spécifiques, vérifiez les paramètres en direct correspondants sur la page Données Moteur.',
+      description: isManufacturer
+          ? 'Code propriétaire du groupe General Motors / Daewoo pour le sous-système $cat. Description constructeur non disponible dans la base standard.'
+          : 'Code standard SAE J2012 pour le système $cat. Fiche atelier détaillée non indexée.',
+      causes: const [], // Pas d'invention de causes imaginaires
+      symptoms: const [], // Pas d'invention de symptômes imaginaires
+      checks: const [], // Pas d'invention de vérifications imaginaires
+      note: 'Rappel sécurité : Ne remplacez aucune pièce sur la seule base d\'un code inconnu. Consultez le schéma de câblage et la revue technique.',
       status: status,
       rawFrame: rawFrame,
     );
@@ -160,36 +170,6 @@ class DtcDatabase {
       return 'Réseau et Communication bus CAN';
     }
     return 'Système auxiliaire';
-  }
-
-  static String _generateDefaultDesc(String code, String title) {
-    return 'Le calculateur a détecté une valeur anormale sur ce circuit : $title.';
-  }
-
-  static List<String> _generateDefaultCauses(String code) {
-    return [
-      'Connecteur du composant desserré, oxydé ou broches endommagées',
-      'Faisceau électrique pincé, coupé ou en court-circuit',
-      'Composant ou capteur défectueux ou encrassé',
-      'Tension de référence électrique instable ou mauvaise masse',
-    ];
-  }
-
-  static List<String> _generateDefaultSymptoms(String code) {
-    return [
-      'Allumage du voyant d\'avertissement au tableau de bord',
-      'Comportement moteur potentiellement altéré ou mode dégradé',
-      'Données de télémétrie associées figées ou erronées',
-    ];
-  }
-
-  static List<String> _generateDefaultChecks(String code) {
-    return [
-      '1. Vérifier la fixation et l\'état des connecteurs du sous-système concerné.',
-      '2. Contrôler au multimètre l\'alimentation électrique (12V ou 5V) et la masse.',
-      '3. Inspecter le faisceau électrique pour détecter d\'éventuels frottements ou câbles dénudés.',
-      '4. Effacer le code après vérification physique et faire un essai routier pour confirmer.',
-    ];
   }
 
   // ─── API Legacy (rétro-compatibilité intégrale) ───────────────────────────

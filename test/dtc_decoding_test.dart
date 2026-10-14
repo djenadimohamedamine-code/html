@@ -192,5 +192,77 @@ void main() {
       final list = scanner.parseRawDtcFrame('43 01 01 07 00 00 00');
       expect(list, ['P0107']);
     });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Reconstitution des trames multiples ISO-TP (ISO 15765-2 / ELM327)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    test('ISO-TP multi-trames 4 codes (0: First Frame + 1: Consecutive Frame)', () {
+      const raw = '0: 43 04 01 07 01 08\n1: 01 09 02 01 00 00';
+      final results = scanner.parseRawFrames(raw);
+
+      expect(results.length, 4);
+      expect(results[0].code, 'P0107');
+      expect(results[1].code, 'P0108');
+      expect(results[2].code, 'P0109');
+      expect(results[3].code, 'P0201');
+    });
+
+    test('ISO-TP multi-trames 5 codes (MAP P0105 à P0109)', () {
+      const raw = '0: 43 05 01 05 01 06\n1: 01 07 01 08 01 09';
+      final results = scanner.parseRawFrames(raw);
+
+      expect(results.length, 5);
+      expect(results.map((e) => e.code).toList(), ['P0105', 'P0106', 'P0107', 'P0108', 'P0109']);
+    });
+
+    test('ISO-TP avec en-tête d\'adresse CAN ECU (7E8) et PCI brut (10 / 21)', () {
+      const raw = '7E8 10 0B 43 04 01 07 01 08\n7E8 21 01 09 02 01 00 00 00';
+      final results = scanner.parseRawFrames(raw);
+
+      expect(results.length, 4);
+      expect(results.map((e) => e.code).toList(), ['P0107', 'P0108', 'P0109', 'P0201']);
+    });
+
+    test('ISO-TP rejet strict en cas de désynchronisation de séquence (0: puis 3:)', () {
+      // Mauvais index consécutif (3: au lieu de 1:) -> trame corrompue, zéro code fantôme
+      const raw = '0: 43 04 01 07 01 08\n3: 01 09 02 01 00 00';
+      final results = scanner.parseRawFrames(raw);
+
+      expect(results, isEmpty, reason: 'Une séquence ISO-TP désynchronisée ne doit produire aucun code fantôme');
+    });
+
+    test('ISO-TP rejet strict en cas de réponse tronquée (First Frame seule reçue)', () {
+      // Annonce 4 codes (04) mais la Consecutive Frame n'arrive jamais
+      const raw = '0: 43 04 01 07 01 08';
+      final results = scanner.parseRawFrames(raw);
+
+      expect(results, isEmpty, reason: 'Une réponse incomplète ne doit pas inventer de codes');
+    });
+
+    test('Prise en compte du protocole détecté (K-Line forcé vs CAN forcé)', () {
+      // En K-Line forcé, 43 01 07 00 00 est décodé en paires directes sans ambiguïté
+      final klineResults = scanner.parseRawFrames('43 01 07 00 00', protocol: ObdProtocolType.kline);
+      expect(klineResults.length, 1);
+      expect(klineResults[0].code, 'P0107');
+
+      // En CAN forcé, 43 01 01 07 00 00 00 décode avec l'octet de décompte 01
+      final canResults = scanner.parseRawFrames('43 01 01 07 00 00 00', protocol: ObdProtocolType.can);
+      expect(canResults.length, 1);
+      expect(canResults[0].code, 'P0107');
+    });
+
+    test('Streaming ligne par ligne via feedRawLine() avec assemblage ISO-TP', () {
+      scanner.resetSession();
+
+      // Ligne 1 : First Frame (4 codes annoncés, 2 reçus pour l'instant)
+      final r1 = scanner.feedRawLine('0: 43 04 01 07 01 08');
+      expect(r1, isEmpty, reason: 'En attente de la suite de la trame multi-lignes');
+
+      // Ligne 2 : Consecutive Frame (reçoit les 2 codes restants)
+      final r2 = scanner.feedRawLine('1: 01 09 02 01 00 00');
+      expect(r2.length, 4);
+      expect(r2.map((e) => e.code).toList(), ['P0107', 'P0108', 'P0109', 'P0201']);
+    });
   });
 }

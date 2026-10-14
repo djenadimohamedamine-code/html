@@ -3,11 +3,16 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'dtc_scanner.dart';
 
 class ObdService {
   static final ObdService _instance = ObdService._internal();
   factory ObdService() => _instance;
   ObdService._internal();
+
+  // --- Protocole OBD détecté (CAN vs K-Line) ---
+  ObdProtocolType detectedProtocol = ObdProtocolType.auto;
+  String detectedProtocolName = 'AUTO';
 
   final String ip = '192.168.0.10';
   final int port = 35000;
@@ -146,10 +151,28 @@ class ObdService {
             String frame = _tcpBuffer.substring(0, promptIdx);
             _tcpBuffer = _tcpBuffer.substring(promptIdx + 1);
 
+            // En mode diagnostic, diffuser le bloc de trame complet pour l'assembleur ISO-TP
+            if (_isDiagnosticMode && !_dtcStreamController.isClosed) {
+              _dtcStreamController.add(frame.trim());
+            }
+
             List<String> lines = frame.split(RegExp(r'[\r\n]+'));
             for (String line in lines) {
               String telegram = line.trim();
               if (telegram.isEmpty) continue;
+
+              // Détection dynamique du protocole véhicule (CAN vs K-Line)
+              final upper = telegram.toUpperCase();
+              if (upper.contains('CAN') || upper.contains('ISO 15765')) {
+                detectedProtocol = ObdProtocolType.can;
+                detectedProtocolName = telegram;
+                _log("MIMO_OBD: Protocole détecté -> CAN ($telegram)");
+              } else if (upper.contains('KWP') || upper.contains('ISO 14230') || upper.contains('ISO 9141')) {
+                detectedProtocol = ObdProtocolType.kline;
+                detectedProtocolName = telegram;
+                _log("MIMO_OBD: Protocole détecté -> K-Line ($telegram)");
+              }
+
               if (_isConfigResponse(telegram)) continue;
               
               if (telegram == 'NO DATA' || telegram == 'UNABLE TO CONNECT') {
@@ -162,7 +185,7 @@ class ObdService {
 
               _updateLastValues(telegram);
               if (!_dataStreamController.isClosed) _dataStreamController.add(telegram);
-              if (!_dtcStreamController.isClosed) _dtcStreamController.add(telegram);
+              if (!_isDiagnosticMode && !_dtcStreamController.isClosed) _dtcStreamController.add(telegram);
               if (!_mileageStreamController.isClosed) _mileageStreamController.add(telegram);
             }
           }
@@ -187,6 +210,7 @@ class ObdService {
       await sendCommandWait('ATH0', delay: 500);    
       await sendCommandWait('ATSP0', delay: 1000);  
       await sendCommandWait('0100', delay: 1000);   
+      await sendCommandWait('ATDP', delay: 500);
       await sendCommandWait('ATSTFF', delay: 500); 
 
       _log("Scanner MIMO_OBD prêt.");

@@ -346,8 +346,8 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
         maxZoom: 19,
         minZoom: 3,
         onPositionChanged: (pos, hasGesture) {
-          if (pos.zoom != null && pos.zoom != zoom) {
-            onZoomChange(pos.zoom!);
+          if (pos.zoom != zoom) {
+            onZoomChange(pos.zoom);
             setState(() {});
           }
         },

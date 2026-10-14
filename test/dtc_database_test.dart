@@ -15,22 +15,31 @@ void main() {
       codes = jsonDecode(content) as Map<String, dynamic>;
     });
 
-    test('Base volumétrie : Contient au moins 9000 codes', () {
+    test('Base volumétrie : Contient au moins 9000 codes et métadonnées CC0', () {
       expect(codes.length, greaterThanOrEqualTo(9000));
+      expect(codes.containsKey('_meta'), isTrue, reason: 'Doit contenir les métadonnées de licence CC0');
+      final meta = codes['_meta'] as Map<String, dynamic>;
+      expect(meta['license'], contains('CC0'));
     });
 
-    test('Priorité MAP P0107 (Panne réelle constatée)', () {
+    test('Validation MAP P0107 (Exemple de validation technique - Pas de présomption de panne réelle)', () {
       expect(codes.containsKey('P0107'), isTrue);
       final p0107 = codes['P0107'] as Map<String, dynamic>;
 
       expect(p0107['msg'], contains('Capteur de pression d\'admission (MAP)'));
       expect(p0107['msg'], contains('Circuit Low'));
+      expect(p0107['title_en'], isNotNull);
+      expect(p0107['title_en'], contains('Manifold Absolute Pressure'));
       expect(p0107['sev'], 'critique');
       expect(p0107['causes'], isNotEmpty);
       expect((p0107['causes'] as List).length, greaterThanOrEqualTo(4));
       expect(p0107['symptoms'], isNotEmpty);
       expect(p0107['checks'], isNotEmpty);
       expect(p0107['note'], contains('Ne remplacez pas'));
+
+      // Vérification sécurité : Aucun conseil dangereux (nettoyant frein pulvérisé moteur tournant)
+      final allText = '${p0107['causes']} ${p0107['checks']} ${p0107['note']}'.toLowerCase();
+      expect(allText.contains('nettoyant frein'), isFalse, reason: 'Interdit : risque d\'incendie moteur');
     });
 
     test('Tous les défauts MAP (P0105, P0106, P0107, P0108, P0109) sont documentés en profondeur', () {

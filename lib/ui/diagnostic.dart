@@ -47,7 +47,7 @@ class _DiagnosticPageState extends State<DiagnosticPage> {
 
   void _parseDiagnosticData(String raw) {
     try {
-      final decoded = _dtcScanner.parseRawFrames(raw);
+      final decoded = _dtcScanner.parseRawFrames(raw, protocol: _obdService.detectedProtocol);
       if (decoded.isNotEmpty) {
         for (var item in decoded) {
           if (!_rawDecodedList.any((e) => e.code == item.code && e.mode == item.mode)) {
@@ -61,6 +61,7 @@ class _DiagnosticPageState extends State<DiagnosticPage> {
   }
 
   void _scanDtc() async {
+    _dtcScanner.resetSession();
     setState(() {
       _isLoading = true;
       _rawDecodedList.clear();
@@ -250,6 +251,17 @@ class _DiagnosticPageState extends State<DiagnosticPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (info.titleEn != null && info.titleEn!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            info.titleEn!,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -348,7 +360,32 @@ class _DiagnosticPageState extends State<DiagnosticPage> {
                 info.description,
                 style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
               ),
-              const SizedBox(height: 20),
+              // Information si fiche non indexée
+              if (info.causes.isEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.white60, size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Fiche atelier détaillée non indexée pour ce code spécifique. Référez-vous à la documentation technique constructeur GM Daewoo pour la procédure officielle de test au multimètre.",
+                          style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Causes probables
               if (info.causes.isNotEmpty) ...[

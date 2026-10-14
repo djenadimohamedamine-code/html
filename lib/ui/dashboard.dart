@@ -993,7 +993,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  void _toggleRide() {
+  void toggleRide() {
     setState(() => isRideActive = !isRideActive);
     if (isRideActive) {
       rideDistance = 0.0;

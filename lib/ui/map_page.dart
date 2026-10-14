@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:convert';
@@ -18,20 +16,16 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
-  final TextEditingController _searchController = TextEditingController();
 
   Position? _currentPosition;
   double _lastHeading = 0;
   double _smoothedSpeed = 0;
-  double _distanceKm = 0.0;
 
   bool _satelliteMode = false;
   bool _isFollowing = true;
-  bool _isSearching = false;
 
   LatLng? _destination;
   List<LatLng> _routePoints = [];
-  String? _destinationName;
 
   // --- ÉLÉMENTS NAVIGATION AVANCÉS ---
   List<dynamic> _navigationSteps = [];
@@ -57,7 +51,6 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _positionStream?.cancel();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -115,12 +108,6 @@ class _MapPageState extends State<MapPage> {
       double smoothed = _smoothAngle(_lastHeading, currentHeading);
 
       setState(() {
-        if (_currentPosition != null) {
-          _distanceKm += Geolocator.distanceBetween(
-            _currentPosition!.latitude, _currentPosition!.longitude,
-            pos.latitude, pos.longitude
-          ) / 1000.0;
-        }
         _currentPosition = pos;
         _lastHeading = smoothed;
       });
@@ -140,41 +127,6 @@ class _MapPageState extends State<MapPage> {
     double targetZoom = (speedKmh > 80) ? 16.0 : (speedKmh > 40) ? 17.0 : 18.2;
     final offsetLat = pos.latitude + 0.0004;
     _mapController.move(LatLng(offsetLat, pos.longitude), targetZoom);
-  }
-
-  // --- RECHERCHE ET NAVIGATION ---
-
-  Future<void> _searchDestination(String query) async {
-    if (query.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _isSearching = true);
-
-    try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/search?format=json&q=$query&limit=1');
-      final response = await http.get(url, headers: {'User-Agent': 'MimoSparkApp'});
-
-      if (response.statusCode == 200) {
-        final List results = json.decode(response.body);
-        if (results.isNotEmpty) {
-          final lat = double.parse(results[0]['lat']);
-          final lon = double.parse(results[0]['lon']);
-          final name = results[0]['display_name'].split(',')[0];
-
-          setState(() {
-            _destination = LatLng(lat, lon);
-            _destinationName = name;
-            _isFollowing = false;
-          });
-
-          await _getRoute(LatLng(_currentPosition!.latitude, _currentPosition!.longitude), _destination!);
-          _mapController.move(_destination!, 14.0);
-        }
-      }
-    } catch (e) {
-      print("Search Error: $e");
-    } finally {
-      setState(() => _isSearching = false);
-    }
   }
 
   Future<void> _getRoute(LatLng start, LatLng end) async {
