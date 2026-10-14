@@ -22,6 +22,8 @@ build/
 **/ios/**/*.perspectivev3
 **/ios/**/*.xcuserstate
 **/ios/.generated/
+**/ios/Flutter/ephemeral/
+.flutter-plugins-dependencies
 **/ios/Flutter/.last_build_id
 **/ios/Flutter/App.framework
 **/ios/Flutter/Flutter.framework

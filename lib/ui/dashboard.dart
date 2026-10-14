@@ -17,6 +17,7 @@ import 'settings_page.dart';
 import 'standalone_clock_page.dart';
 import 'engine_data_page.dart';
 import 'performance_page.dart';
+import 'fuel_gauge_widget.dart';
 import '../core/background_service.dart';
 import '../vocal/voice_service.dart';
 import '../vocal/tts_service.dart';
@@ -260,43 +261,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             children: [
               const Text('Aligne l\'aiguille digitale exactement sur ton vrai cadran', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 11)),
               const SizedBox(height: 20),
-              // Gauge superposée sur la photo ta.jpeg
-              Container(
-                width: 240, height: 240,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white24, width: 2),
-                  boxShadow: [BoxShadow(color: Colors.orangeAccent.withOpacity(0.15), blurRadius: 20)],
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/ta.jpeg'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: SfRadialGauge(
-                  axes: <RadialAxis>[
-                    RadialAxis(
-                      minimum: 0, maximum: 35,
-                      startAngle: 215, endAngle: 315, // Calibrage optimal pour Spark : E=215° / F=315°
-                      showLabels: false, showTicks: false,
-                      axisLineStyle: const AxisLineStyle(thickness: 0, color: Colors.transparent),
-                      pointers: <GaugePointer>[
-                        NeedlePointer(
-                          value: tempFuel, 
-                          needleColor: Colors.orangeAccent,
-                          tailStyle: const TailStyle(width: 8, color: Colors.orangeAccent),
-                          needleStartWidth: 1, needleEndWidth: 7, 
-                          needleLength: 0.85, 
-                          knobStyle: const KnobStyle(color: Colors.white, knobRadius: 0.12),
-                          enableAnimation: true,
-                          enableDragging: true,
-                          onValueChanged: (val) {
-                            setLocal(() => tempFuel = val);
-                          },
-                        )
-                      ]
-                    )
-                  ]
-                )
+              // Jauge analogique photo avec aiguille déplaçable
+              FuelGaugeWidget(
+                fuelLiters: tempFuel,
+                isDraggable: true,
+                size: 240,
+                onValueChanged: (val) {
+                  setLocal(() => tempFuel = val);
+                },
               ),
               const SizedBox(height: 10),
               const Text('DRAGUEZ L\'AIGUILLE DIRECTEMENT', 
@@ -1053,43 +1025,171 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   Widget _buildFuelGauge({bool isLandscape = false}) {
     double fuelVal = _fuelCalculator.currentLiters;
     int kmRestants = (fuelVal / 7.5 * 100).toInt();
-    
-    return _buildGlassCard(
-      height: isLandscape ? 160 : (isHudMode ? 240 : 180), 
-      child: SfRadialGauge(
-        axes: <RadialAxis>[
-          RadialAxis(
-            minimum: 0, maximum: 35,
-            startAngle: 160, endAngle: 20,
-            showLabels: false, showTicks: false,
-            axisLineStyle: const AxisLineStyle(thickness: 12, cornerStyle: CornerStyle.bothCurve, color: Colors.white10),
-            pointers: <GaugePointer>[
-              RangePointer(
-                value: fuelVal, width: 12, cornerStyle: CornerStyle.bothCurve,
-                gradient: const SweepGradient(colors: [Colors.red, Colors.orange, Colors.greenAccent], stops: [0.1, 0.4, 0.9]),
-              ),
-              MarkerPointer(value: fuelVal, markerType: MarkerType.circle, color: Colors.white, markerHeight: 15, markerWidth: 15)
-            ],
-            annotations: <GaugeAnnotation>[
-              GaugeAnnotation(
-                widget: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.local_gas_station, color: Colors.white70, size: isLandscape ? 16 : 20),
-                    const SizedBox(height: 4),
-                    Text('$kmRestants KM', style: TextStyle(color: kmRestants <= 70 ? Colors.redAccent : (kmRestants <= 120 ? Colors.orangeAccent : Colors.greenAccent), fontSize: isLandscape ? 20 : 26, fontWeight: FontWeight.w900)),
-                    if (!isLandscape) ...[
-                      const SizedBox(height: 4),
-                      Text('${fuelVal.toStringAsFixed(1)} L', style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
-                    ]
-                  ],
+
+    final Color statusColor = kmRestants <= 70
+        ? Colors.redAccent
+        : (kmRestants <= 120 ? Colors.orangeAccent : Colors.greenAccent);
+
+    if (isLandscape) {
+      return _buildGlassCard(
+        height: 160,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: _showFuelCalibrationDialog,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+            child: Row(
+              children: [
+                FuelGaugeWidget(
+                  fuelLiters: fuelVal,
+                  size: 110,
+                  showGlow: true,
                 ),
-                angle: 90, positionFactor: 0.1
-              )
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.local_gas_station, color: statusColor, size: 16),
+                          const SizedBox(width: 4),
+                          const Text(
+                            "CARBURANT",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.tune, color: Colors.white38, size: 14),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$kmRestants KM',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(
+                            '${fuelVal.toStringAsFixed(1)} L',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            ' / 35L',
+                            style: TextStyle(color: Colors.white38, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _buildGlassCard(
+      height: isHudMode ? 240 : 180,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: _showFuelCalibrationDialog,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.local_gas_station, color: statusColor, size: 14),
+                      const SizedBox(width: 4),
+                      const Text(
+                        "CARBURANT",
+                        style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 9,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orangeAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orangeAccent.withOpacity(0.3), width: 0.8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.tune, color: Colors.orangeAccent, size: 10),
+                        SizedBox(width: 3),
+                        Text(
+                          "CAL",
+                          style: TextStyle(color: Colors.orangeAccent, fontSize: 8, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Center(
+                  child: FuelGaugeWidget(
+                    fuelLiters: fuelVal,
+                    size: 96,
+                    showGlow: true,
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '$kmRestants KM',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    '${fuelVal.toStringAsFixed(1)} L',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ],
-          )
-        ],
-      )
+          ),
+        ),
+      ),
     );
   }
 
