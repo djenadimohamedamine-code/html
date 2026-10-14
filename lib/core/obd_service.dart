@@ -316,9 +316,11 @@ class ObdService {
     try {
       await Future.delayed(const Duration(milliseconds: 500));
       sendCommand("03"); 
-      await Future.delayed(const Duration(seconds: 3)); 
+      await Future.delayed(const Duration(seconds: 2)); 
       sendCommand("07");
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
+      sendCommand("0A");
+      await Future.delayed(const Duration(seconds: 2));
     } finally {
       _isDiagnosticMode = false;
     }

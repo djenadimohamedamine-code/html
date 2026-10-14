@@ -93,24 +93,34 @@ class DtcScanner {
         }
 
         int? firstByteVal = int.tryParse(payload[0], radix: 16);
-        bool hasCountByte = false;
+        bool isCanFormat = false;
 
-        // Détection intelligente du format ISO 15765-4 (CAN avec octet de compte NODTC)
-        // Si le premier octet vaut N (1 à 16) et qu'il y a au moins 2*N octets qui suivent :
+        // Détection formelle et non-ambiguë du format CAN ISO 15765-4 :
+        // 1. Trame multiple ISO-TP débutant par un index de trame '0:' avec octet de compte N >= 1
+        // 2. Trame CAN Single Frame standard (7 octets après le mode), où :
+        //    - Le 1er octet N est le compte de DTC (1 à 3)
+        //    - Les octets 1 à 2*N sont les codes DTC
+        //    - Les octets restants (6 - 2*N) sont TOUS des zéros de bourrage '00'
+        // 3. Trame CAN tronquée exacte sans bourrage : longueur == 1 + 2*N (longueur impaire : 3, 5, 7...)
         if (firstByteVal != null && firstByteVal >= 1 && firstByteVal <= 16) {
           int expectedDtcBytes = 2 * firstByteVal;
-          if (payload.length == 1 + expectedDtcBytes) {
-            hasCountByte = true;
-          } else if (payload.length > 1 + expectedDtcBytes) {
+          if (trimmed.startsWith(RegExp(r'^[0-9A-F]{1,3}:\s*4')) && payload.length >= 1 + expectedDtcBytes) {
+            // ISO-TP Multi-frame
+            isCanFormat = true;
+          } else if ((payload.length == 6 || payload.length == 7) && firstByteVal <= 3) {
+            // Standard CAN Single Frame (DLC = 8 avec SID + NODTC + 3 slots)
             final tail = payload.sublist(1 + expectedDtcBytes);
-            if (tail.every((b) => b == '00')) {
-              hasCountByte = true;
+            if (tail.isNotEmpty && tail.every((b) => b == '00')) {
+              isCanFormat = true;
             }
+          } else if (payload.length == 1 + expectedDtcBytes) {
+            // CAN exact sans bourrage (ex: 3 octets pour N=1, 5 octets pour N=2)
+            isCanFormat = true;
           }
         }
 
-        if (hasCountByte && firstByteVal != null) {
-          // Format standard avec octet de compte : on extrait exactement N codes
+        if (isCanFormat && firstByteVal != null) {
+          // Format CAN avec octet de décompte (NODTC)
           for (int i = 0; i < firstByteVal; i++) {
             int highIdx = 1 + (2 * i);
             int lowIdx = 2 + (2 * i);
@@ -127,7 +137,8 @@ class DtcScanner {
             }
           }
         } else {
-          // Format sans octet de compte (K-Line direct ou trame tronquée)
+          // Format K-Line ISO 9141-2 / ISO 14230 (paires directes de 2 octets sans octet de décompte)
+          // Tout octet de bourrage 00 00 est automatiquement ignoré par decodeDtcBytes
           for (int i = 0; i + 1 < payload.length; i += 2) {
             String? dtc = decodeDtcBytes(payload[i], payload[i + 1]);
             if (dtc != null) {
