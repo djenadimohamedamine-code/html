@@ -42,18 +42,18 @@ class FuelGaugeWidget extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: isDraggable ? Colors.orangeAccent.withValues(alpha: 0.7) : Colors.transparent,
+          color: isDraggable ? Colors.orangeAccent.withOpacity(0.7) : Colors.transparent,
           width: isDraggable ? 2.5 : 0,
         ),
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: Colors.orangeAccent.withValues(alpha: 0.18),
+                  color: Colors.orangeAccent.withOpacity(0.18),
                   blurRadius: 18 * scale,
                   spreadRadius: 2 * scale,
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
+                  color: Colors.black.withOpacity(0.6),
                   blurRadius: 10 * scale,
                 ),
               ]
