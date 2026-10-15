@@ -3,38 +3,52 @@ import 'package:path_provider/path_provider.dart';
 
 /// Journalisation temporaire du cap GPS pour diagnostic P0-GPS.
 ///
-/// Activée par le flag [enabled]. Ne jamais pousser avec [enabled = true]
-/// en production. Ne stocke aucune coordonnée géographique.
+/// Désactivée par défaut ([enabled = false]). Peut être activée/désactivée
+/// dynamiquement depuis l'interface SPARK sur iPhone.
+/// Ne stocke aucune coordonnée géographique absolue.
 ///
 /// Accès sans Xcode : [GpsDebugLogPage] lit ce fichier et propose
-/// le partage via la feuille de partage iOS (share_plus).
+/// le partage direct via la feuille de partage iOS (share_plus).
 class GpsDebugLogger {
   GpsDebugLogger._();
 
-  /// Mettre à true uniquement pendant une session de diagnostic terrain.
-  /// Remettre à false avant tout push ou build release.
-  static const bool enabled = true;
+  /// Désactivé par défaut. Basculable à chaud via [setEnabled]
+  /// depuis l'interface sur l'iPhone.
+  static bool enabled = false;
 
   static const String _filename = 'gps_debug_log.txt';
-  static const int _maxLines = 2000; // ~200 Ko — ne sature pas l'iPhone
+  static const int _maxLines = 2000; // ~200 Ko — borné, ne sature pas la mémoire
 
   // Buffer mémoire pour affichage in-app immédiat
   static final List<String> _buffer = [];
   static IOSink? _sink;
   static bool _initialized = false;
 
-  // ------------------------------------------------------------------ init
+  // ------------------------------------------------------------------ toggle & init
+
+  /// Active ou désactive la journalisation à chaud.
+  static Future<void> setEnabled(bool value) async {
+    enabled = value;
+    if (enabled) {
+      await init();
+      mark('LOGGING_ACTIVE');
+    } else {
+      mark('LOGGING_PAUSE');
+      await close();
+    }
+  }
 
   static Future<void> init() async {
-    if (!enabled) return;
     if (_initialized) return;
-    _initialized = true;
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/$_filename');
-    _sink = file.openWrite(mode: FileMode.append);
-    final header = _buildHeader();
-    _sink!.writeln(header);
-    _buffer.add(header);
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$_filename');
+      _sink = file.openWrite(mode: FileMode.append);
+      _initialized = true;
+      final header = _buildHeader();
+      _sink!.writeln(header);
+      _buffer.add(header);
+    } catch (_) {}
   }
 
   static String _buildHeader() {
@@ -54,7 +68,7 @@ class GpsDebugLogger {
   /// [accuracyM]     : pos.accuracy en mètres
   /// [distPrevM]     : distance depuis la position précédente (m)
   /// [distAnchorM]   : distance accumulée depuis la dernière ancre fiable (m)
-  /// [source]        : "ios_direct" | "anchor_bearing" | "frozen"
+  /// [source]        : "ios_direct" | "anchor_bearing" | "frozen" | "frozen_slow"
   /// [smoothedDeg]   : cap final après lissage
   /// [page]          : "MapPage" | "ExpertMapPage"
   static void log({
@@ -88,11 +102,11 @@ class GpsDebugLogger {
 
   // ------------------------------------------------------------------ event markers
 
-  /// Insère un marqueur textuel dans les logs (ex: "UTURN_START").
+  /// Insère un marqueur textuel dans les logs (ex: "UTURN_START", "DEMI_TOUR").
   static void mark(String label) {
-    if (!enabled) return;
     final line = '# ${DateTime.now().toIso8601String()} [$label]';
     _buffer.add(line);
+    if (_buffer.length > _maxLines) _buffer.removeAt(0);
     _sink?.writeln(line);
   }
 
@@ -123,7 +137,9 @@ class GpsDebugLogger {
     if (await file.exists()) await file.writeAsString('');
     _initialized = false;
     _sink = null;
-    await init();
+    if (enabled) {
+      await init();
+    }
   }
 
   /// Ferme le sink proprement (appeler dans dispose).

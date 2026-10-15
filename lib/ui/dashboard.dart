@@ -21,6 +21,8 @@ import 'fuel_gauge_widget.dart';
 import '../core/background_service.dart';
 import '../vocal/voice_service.dart';
 import '../vocal/tts_service.dart';
+import '../core/gps_debug_logger.dart';
+import 'gps_debug_log_page.dart';
 
 
 class Dashboard extends StatefulWidget {
@@ -617,6 +619,31 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const MapPage()));
                 },
               ),
+              // ── Entrée diagnostic GPS (accessible pour activer/consulter les logs) ──
+              ListTile(
+                leading: Icon(
+                  Icons.bug_report,
+                  color: GpsDebugLogger.enabled ? Colors.redAccent : Colors.amberAccent,
+                ),
+                title: const Text(
+                  'Log GPS — Diagnostic',
+                  style: TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  GpsDebugLogger.enabled ? '● Enregistrement en cours' : 'Journalisation temporaire (en pause)',
+                  style: TextStyle(
+                    color: GpsDebugLogger.enabled ? Colors.redAccent : Colors.white38,
+                    fontSize: 10,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const GpsDebugLogPage(),
+                  ));
+                },
+              ),
+              // ── Fin entrée diagnostic GPS ──────────────────────────────────
               ListTile(
                 leading: Icon(isHudMode ? Icons.flip_to_front : Icons.flip_to_back, color: const Color(0xFFFF3333)),
                 title: Text(isHudMode ? 'Mode Normal' : 'Mode HUD (Miroir)', style: const TextStyle(color: const Color(0xFFFF3333))),

@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import '../core/vehicle_marker_heading.dart';
+import '../core/gps_debug_logger.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -39,6 +40,10 @@ class _MapPageState extends State<MapPage> {
 
   StreamSubscription<Position>? _positionStream;
 
+  // Variable de suivi pour la journalisation diagnostique uniquement.
+  // Ne modifie pas la logique GPS. Retirer avec GpsDebugLogger quand enabled=false.
+  double _logAnchorDist = 0;
+
   // Public key-free sources. Neither contains real-time traffic data.
   static const String _osmTileUrl =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -48,12 +53,14 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    GpsDebugLogger.init();
     _startLocationTracking();
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
+    GpsDebugLogger.close();
     super.dispose();
   }
 
@@ -112,6 +119,41 @@ class _MapPageState extends State<MapPage> {
       }
       
       double smoothed = _smoothAngle(_lastHeading, currentHeading);
+
+      // ── Log GPS diagnostic (temporaire — P0-GPS) ─────────────────────────
+      // Ce bloc ne modifie aucune variable de la logique GPS.
+      // Retirer quand GpsDebugLogger.enabled = false.
+      if (GpsDebugLogger.enabled && _currentPosition != null) {
+        final double stepDist = Geolocator.distanceBetween(
+          _currentPosition!.latitude, _currentPosition!.longitude,
+          pos.latitude, pos.longitude,
+        );
+        if (pos.heading >= 0.0 && pos.heading.isFinite) {
+          _logAnchorDist = 0;
+        } else {
+          _logAnchorDist += stepDist;
+        }
+        final String logSource;
+        if (pos.heading >= 0.0 && pos.heading.isFinite) {
+          logSource = 'ios_direct';
+        } else if (speedKmh <= 1.5) {
+          logSource = 'frozen_slow';
+        } else {
+          logSource = 'frozen';
+        }
+        GpsDebugLogger.log(
+          timestampMs: DateTime.now().millisecondsSinceEpoch,
+          speedKmh: speedKmh,
+          headingRaw: pos.heading,
+          accuracyM: pos.accuracy,
+          distPrevM: stepDist,
+          distAnchorM: _logAnchorDist,
+          source: logSource,
+          smoothedDeg: smoothed,
+          page: 'MapPage',
+        );
+      }
+      // ── Fin log GPS ────────────────────────────────────────────────────────
 
       setState(() {
         _currentPosition = pos;
