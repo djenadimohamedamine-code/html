@@ -8,10 +8,16 @@
 //   2. Calcul correct des angles pour chaque niveau de carburant
 //   3. Soustraction correcte des litres consommés (updateVirtualFuel)
 //   4. Absence de soustraction avec des données OBD invalides
-//   5. Calcul MAF→L/h (calculateConsumptionLph)
+//   5. Calcul MAF virtuel → L/h (calculateConsumptionLph)
 //   6. kmRestants cohérent avec currentLiters
 //   7. Clamp [0, 35] — pas de débordement
 //   8. calibrate() prioritaire sur updateVirtualFuel
+//
+// Chaîne OBD2 → carburant (dashboard.dart) :
+//   PID 0C (RPM) + PID 0F (IAT) + PID 0B (MAP, Manifold Absolute Pressure)
+//   → MAF virtuel (g/s) → calculateConsumptionLph() → L/h
+//   → updateVirtualFuel() → currentLiters → FuelGaugeWidget → aiguille
+//   Note : PID 0B = 0x0B = 11 décimal = MAP. Ne pas confondre avec PID 0x11 = TPS.
 //
 // Tests nécessitant l'iPhone + ELM327 (marqués [ON_VEHICLE]) :
 //   - Sauvegarde/restauration réelle via SharedPreferences (nécessite plugin)
