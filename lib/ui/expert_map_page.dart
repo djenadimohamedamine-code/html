@@ -258,6 +258,16 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 isMap1: true,
                                 onZoomChange: (z) => _zoomMap = z,
                               ),
+                              const Positioned(
+                                right: 6,
+                                bottom: 3,
+                                child: IgnorePointer(
+                                  child: Text(
+                                    '© OpenStreetMap contributors — sans trafic temps réel',
+                                    style: TextStyle(fontSize: 9, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+                                  ),
+                                ),
+                              ),
                               Positioned(
                                 top: 10, right: 10,
                                 child: IconButton(
@@ -285,6 +295,16 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 zoom: _zoomSat,
                                 isMap1: false,
                                 onZoomChange: (z) => _zoomSat = z,
+                              ),
+                              const Positioned(
+                                right: 6,
+                                bottom: 3,
+                                child: IgnorePointer(
+                                  child: Text(
+                                    'Imagerie © Esri',
+                                    style: TextStyle(fontSize: 9, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 top: 10, left: 10,
