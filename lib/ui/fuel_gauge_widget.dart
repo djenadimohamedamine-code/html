@@ -35,8 +35,8 @@ class FuelGaugeWidget extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: isDraggable ? Colors.orangeAccent.withOpacity(0.6) : Colors.white24,
-          width: isDraggable ? 2.5 : 1.5,
+          color: isDraggable ? Colors.orangeAccent.withOpacity(0.7) : Colors.white12,
+          width: isDraggable ? 2.5 : 1.0,
         ),
         boxShadow: showGlow
             ? [
@@ -74,11 +74,11 @@ class FuelGaugeWidget extends StatelessWidget {
                 needleStartWidth: (1.2 * scale).clamp(1.0, 2.0),
                 needleEndWidth: (5.5 * scale).clamp(2.5, 5.5),
                 needleLength: 0.82,
-                knobStyle: KnobStyle(
-                  color: const Color(0xFF1A1A1A),
-                  knobRadius: 0.08,
-                  borderColor: const Color(0xFF444444),
-                  borderWidth: (1.5 * scale).clamp(1.0, 2.0),
+                knobStyle: const KnobStyle(
+                  color: Color(0xFF141414),
+                  knobRadius: 0.042,
+                  borderWidth: 0,
+                  borderColor: Colors.transparent,
                 ),
                 enableAnimation: !isDraggable,
                 animationDuration: 1000,
