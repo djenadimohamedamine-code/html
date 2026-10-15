@@ -21,6 +21,12 @@ jobs:
         run: |
           rm -rf ios
           flutter create --platforms=ios .
+          # flutter create may generate an obsolete widget_test.dart
+          # importing package:spark/main.dart / MyApp (old Flutter template).
+          # Remove it ONLY when not tracked in our actual repository.
+          if ! git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1; then
+            rm -f test/widget_test.dart
+          fi
 
       - name: Inject_iOS_Permissions
         run: |
