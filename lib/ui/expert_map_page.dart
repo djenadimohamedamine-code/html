@@ -146,24 +146,37 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     _moveTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
       if (!mounted) { timer.cancel(); return; }
 
-      // Map Update
-      final currentMap = _mapController.camera.center;
-      double latMap = currentMap.latitude + (targetMap.latitude - currentMap.latitude) * 0.1;
-      double lngMap = currentMap.longitude + (targetMap.longitude - currentMap.longitude) * 0.1;
-      double rotMap = -_lastHeading % 360;
-      if (rotMap > 180) rotMap -= 360;
-      if (rotMap < -180) rotMap += 360;
-      _mapController.moveAndRotate(LatLng(latMap, lngMap), _zoomMap, rotMap);
+      // Full-screen view removes the other map from the widget tree.
+      // Never access a detached MapController.camera.
+      bool mapDone = true;
+      bool satDone = true;
 
-      // Sat Update (No rotation)
-      final currentSat = _satController.camera.center;
-      double latSat = currentSat.latitude + (targetSat.latitude - currentSat.latitude) * 0.1;
-      double lngSat = currentSat.longitude + (targetSat.longitude - currentSat.longitude) * 0.1;
-      _satController.move(LatLng(latSat, lngSat), _zoomSat);
-
-      if ((latMap - targetMap.latitude).abs() < 0.000001 && (lngMap - targetMap.longitude).abs() < 0.000001) {
-        timer.cancel();
+      if (_viewMode != 2) {
+        final currentMap = _mapController.camera.center;
+        final latMap = currentMap.latitude +
+            (targetMap.latitude - currentMap.latitude) * 0.1;
+        final lngMap = currentMap.longitude +
+            (targetMap.longitude - currentMap.longitude) * 0.1;
+        double rotMap = (-_lastHeading) % 360;
+        if (rotMap > 180) rotMap -= 360;
+        if (rotMap < -180) rotMap += 360;
+        _mapController.moveAndRotate(LatLng(latMap, lngMap), _zoomMap, rotMap);
+        mapDone = (latMap - targetMap.latitude).abs() < 0.000001 &&
+            (lngMap - targetMap.longitude).abs() < 0.000001;
       }
+
+      if (_viewMode != 1) {
+        final currentSat = _satController.camera.center;
+        final latSat = currentSat.latitude +
+            (targetSat.latitude - currentSat.latitude) * 0.1;
+        final lngSat = currentSat.longitude +
+            (targetSat.longitude - currentSat.longitude) * 0.1;
+        _satController.move(LatLng(latSat, lngSat), _zoomSat);
+        satDone = (latSat - targetSat.latitude).abs() < 0.000001 &&
+            (lngSat - targetSat.longitude).abs() < 0.000001;
+      }
+
+      if (mapDone && satDone) timer.cancel();
     });
   }
 
