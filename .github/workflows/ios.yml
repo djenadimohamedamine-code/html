@@ -1,7 +1,7 @@
 name: Mimo-Spark-iOS-Build-IPA
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "spark-v3-integration" ]
   workflow_dispatch:
 
 jobs:
@@ -49,6 +49,12 @@ jobs:
         run: |
           flutter config --enable-ios
           flutter pub get
+
+      - name: Validate_Flutter_Tests
+        run: flutter test --no-pub
+
+      - name: Validate_Dart_Analysis
+        run: flutter analyze --no-pub --no-fatal-infos
 
       - name: Build_iOS_IPA
         run: |
