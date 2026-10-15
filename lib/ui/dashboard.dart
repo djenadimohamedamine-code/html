@@ -698,14 +698,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             children: [
                               if (!isHudMode) ...[
                                 _buildClock(),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(child: _buildFuelGauge()),
-                                    Expanded(child: _buildTempGauge()),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 8),
+                                _buildCompactTempWidget(),
+                                const SizedBox(height: 10),
+                                _buildFuelHeroCard(),
+                                const SizedBox(height: 10),
                                 Row(
                                   children: [
                                     Expanded(child: _buildRpmGauge()),
@@ -1105,88 +1102,363 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       );
     }
 
-    return _buildGlassCard(
-      height: isHudMode ? 240 : 180,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: _showFuelCalibrationDialog,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return _buildFuelHeroCard();
+  }
+
+  Widget _buildCompactTempWidget() {
+    final bool hasValidTemp = temperature > 0.0;
+    final double tempVal = temperature;
+
+    // Seuils thermiques réalistes moteur essence Daewoo F8CV 0.8L :
+    // - Thermostat mécanique s'ouvre vers 82-88°C
+    // - Ventilateur déclenche en petite vitesse à ~98-102°C
+    // - Bleu : phase de chauffe (< 75°C)
+    // - Vert : température nominale optimale (75°C à 102°C) -> 96°C reste nominal
+    // - Orange : surveillance / moteur très chaud (103°C à 108°C)
+    // - Rouge : alerte critique de surchauffe (> 108°C)
+    final Color statusColor;
+    final String statusLabel;
+    final String tempText;
+
+    if (!hasValidTemp) {
+      statusColor = Colors.white38;
+      statusLabel = "EN ATTENTE";
+      tempText = "—";
+    } else if (tempVal < 75.0) {
+      statusColor = Colors.lightBlueAccent;
+      statusLabel = "FROID";
+      tempText = tempVal.toStringAsFixed(0);
+    } else if (tempVal <= 102.0) {
+      statusColor = Colors.greenAccent;
+      statusLabel = "OPTIMAL";
+      tempText = tempVal.toStringAsFixed(0);
+    } else if (tempVal <= 108.0) {
+      statusColor = Colors.orangeAccent;
+      statusLabel = "CHAUD";
+      tempText = tempVal.toStringAsFixed(0);
+    } else {
+      statusColor = Colors.redAccent;
+      statusLabel = "ALERTE";
+      tempText = tempVal.toStringAsFixed(0);
+    }
+
+    // Ratio sur l'échelle 50°C à 130°C (amplitude 80°C)
+    final double tempRatio = hasValidTemp 
+        ? ((tempVal - 50.0) / 80.0).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F0F0F).withOpacity(0.85),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFF3333).withOpacity(0.25), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: statusColor.withOpacity(0.15),
+              border: Border.all(color: statusColor.withOpacity(0.4), width: 1.2),
+            ),
+            child: Icon(Icons.thermostat, color: statusColor, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.local_gas_station, color: statusColor, size: 14),
-                      const SizedBox(width: 4),
-                      const Text(
-                        "CARBURANT",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 9,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.orangeAccent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orangeAccent.withOpacity(0.3), width: 0.8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+              Text(
+                tempText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                " °C",
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: statusColor.withOpacity(0.35), width: 0.8),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const Spacer(),
+          // Mini indicateur visuel (bargraph 4 couleurs : 31% Bleu, 34% Vert, 8% Orange, 27% Rouge)
+          SizedBox(
+            width: 110,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    height: 6,
+                    color: Colors.white10,
+                    child: Stack(
                       children: [
-                        Icon(Icons.tune, color: Colors.orangeAccent, size: 10),
-                        SizedBox(width: 3),
-                        Text(
-                          "CAL",
-                          style: TextStyle(color: Colors.orangeAccent, fontSize: 8, fontWeight: FontWeight.bold),
+                        Row(
+                          children: [
+                            Expanded(flex: 31, child: Container(color: Colors.lightBlueAccent.withOpacity(0.25))),
+                            Expanded(flex: 34, child: Container(color: Colors.greenAccent.withOpacity(0.25))),
+                            Expanded(flex: 8, child: Container(color: Colors.orangeAccent.withOpacity(0.25))),
+                            Expanded(flex: 27, child: Container(color: Colors.redAccent.withOpacity(0.25))),
+                          ],
                         ),
+                        if (hasValidTemp)
+                          FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: tempRatio,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: statusColor.withOpacity(0.8),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              Expanded(
-                child: Center(
-                  child: FuelGaugeWidget(
-                    fuelLiters: fuelVal,
-                    size: 96,
-                    showGlow: true,
+                ),
+                const SizedBox(height: 3),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("50", style: TextStyle(color: Colors.white30, fontSize: 8)),
+                    Text("90", style: TextStyle(color: Colors.greenAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+                    Text("130", style: TextStyle(color: Colors.white30, fontSize: 8)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFuelHeroCard() {
+    final double fuelVal = _fuelCalculator.currentLiters;
+    final int kmRestants = _fuelCalculator.kmRestants;
+    final double fuelPercent = (fuelVal / 35.0).clamp(0.0, 1.0);
+
+    final Color statusColor = kmRestants <= 70
+        ? Colors.redAccent
+        : (kmRestants <= 120 ? Colors.orangeAccent : Colors.greenAccent);
+
+    // Consommation instantanée distincte
+    final double lph = _smoothLph;
+    final bool isStopped = speed < 5.0;
+    final String instantConsoStr = isStopped 
+        ? '${lph.toStringAsFixed(1)} L/h' 
+        : '${(lph / (speed > 0 ? speed : 1.0) * 100).toStringAsFixed(1)} L/100';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0A).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFF3333).withOpacity(0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.8),
+            blurRadius: 15,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: const Color(0xFFFF3333).withOpacity(0.08),
+            blurRadius: 20,
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: _showFuelCalibrationDialog,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Jauge réelle ta.jpeg avec aiguille unique agrandie à 142 pt
+                FuelGaugeWidget(
+                  fuelLiters: fuelVal,
+                  size: 142,
+                  showGlow: true,
+                ),
+                const SizedBox(width: 14),
+                // Bloc télémétrique droit haute visibilité
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Header : Titre + CAL button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.local_gas_station, color: Colors.orangeAccent, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                "CARBURANT SPARK",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.orangeAccent.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.tune, color: Colors.orangeAccent, size: 11),
+                                SizedBox(width: 3),
+                                Text(
+                                  "CAL",
+                                  style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Autonomie héro cohérente avec la consommation de référence (7.5 L/100)
+                      const Text(
+                        "AUTONOMIE ESTIMÉE (RÉF. 7.5 L/100)",
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      Text(
+                        '$kmRestants KM',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // Litres restants
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '${fuelVal.toStringAsFixed(1)} L',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            ' / 35 L  (${(fuelPercent * 100).toStringAsFixed(0)}%)',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Barre de progression carburant
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          height: 6,
+                          color: Colors.white10,
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: fuelPercent,
+                            child: Container(
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Consommation instantanée distincte
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Instantanée : $instantConsoStr",
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Text(
+                            "Toucher pour calibrer",
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 8.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '$kmRestants KM',
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    '${fuelVal.toStringAsFixed(1)} L',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1194,8 +1466,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   Widget _buildTempGauge({bool isLandscape = false}) {
+    if (!isLandscape) {
+      return _buildCompactTempWidget();
+    }
     return _buildGlassCard(
-      height: isLandscape ? 160 : (isHudMode ? 240 : 180), 
+      height: 160, 
       child: SfRadialGauge(
         axes: <RadialAxis>[
           RadialAxis(
@@ -1215,9 +1490,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 widget: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.thermostat, color: Colors.white70, size: isLandscape ? 16 : 20),
+                    Icon(Icons.thermostat, color: Colors.white70, size: 16),
                     const SizedBox(height: 4),
-                    Text('${temperature.toStringAsFixed(0)}°C', style: TextStyle(color: Colors.white, fontSize: isLandscape ? 18 : 22, fontWeight: FontWeight.bold)),
+                    Text('${temperature.toStringAsFixed(0)}°C', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 angle: 90, positionFactor: 0.1

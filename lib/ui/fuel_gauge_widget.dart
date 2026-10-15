@@ -69,19 +69,16 @@ class FuelGaugeWidget extends StatelessWidget {
             pointers: <GaugePointer>[
               NeedlePointer(
                 value: clampedFuel,
-                needleColor: Colors.orangeAccent,
-                tailStyle: TailStyle(
-                  width: (8 * scale).clamp(3.0, 8.0),
-                  color: Colors.orangeAccent,
-                ),
-                needleStartWidth: (1 * scale).clamp(0.8, 1.5),
-                needleEndWidth: (7 * scale).clamp(3.0, 7.0),
-                needleLength: 0.85,
+                needleColor: const Color(0xFFFF7700),
+                tailStyle: const TailStyle(length: 0, width: 0),
+                needleStartWidth: (1.2 * scale).clamp(1.0, 2.0),
+                needleEndWidth: (5.5 * scale).clamp(2.5, 5.5),
+                needleLength: 0.82,
                 knobStyle: KnobStyle(
-                  color: Colors.white,
-                  knobRadius: 0.12,
-                  borderColor: Colors.black45,
-                  borderWidth: (2 * scale).clamp(1.0, 2.0),
+                  color: const Color(0xFF1A1A1A),
+                  knobRadius: 0.08,
+                  borderColor: const Color(0xFF444444),
+                  borderWidth: (1.5 * scale).clamp(1.0, 2.0),
                 ),
                 enableAnimation: !isDraggable,
                 animationDuration: 1000,
