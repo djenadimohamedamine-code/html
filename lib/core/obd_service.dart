@@ -75,6 +75,20 @@ class ObdService {
   DateTime _lastDataReceived = DateTime.now();
   bool _isDiagnosticMode = false;
 
+  // --- Getter public : permet au dashboard de lire l'âge des données ---
+  // Utilisé pour décider si une reconnexion est nécessaire au retour de
+  // l'arrière-plan, sans envoyer de commande ELM327 en parallèle du polling.
+  DateTime get lastDataReceived => _lastDataReceived;
+
+  /// Retourne true si la socket existe ET a reçu des données dans les
+  /// [maxAgeSeconds] dernières secondes.
+  /// Ne fait aucune écriture réseau — lecture seule du timestamp.
+  bool checkConnectionHealth({int maxAgeSeconds = 8}) {
+    if (_socket == null) return false;
+    final age = DateTime.now().difference(_lastDataReceived).inSeconds;
+    return age <= maxAgeSeconds;
+  }
+
   // --- Watchdog Intelligent (Version 5.0) ---
   void _startWatchdog() {
     _heartbeatTimer?.cancel();
