@@ -103,10 +103,21 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
       
       double smoothed = _smoothAngle(_lastHeading, currentHeading);
 
+      double traveledMeters = 0.0;
+      if (_currentPosition != null) {
+        traveledMeters = Geolocator.distanceBetween(
+          _currentPosition!.latitude, _currentPosition!.longitude,
+          pos.latitude, pos.longitude,
+        );
+      }
       setState(() {
         _currentPosition = pos;
         _lastHeading = smoothed;
-        _distanceKm += (speedKmh / 3600) * (5 / 1000); // Rough simulation for demo
+        // Count only plausible GPS movement, never a simulated fixed increment.
+        if (speedKmh > 2 && pos.accuracy <= 30 &&
+            traveledMeters > 2 && traveledMeters < 150) {
+          _distanceKm += traveledMeters / 1000.0;
+        }
       });
 
       if (_smoothedSpeed > 2) {
@@ -119,9 +130,15 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     _moveTimer?.cancel();
     
     // Offset for Map (Waze style, car at bottom)
-    double distanceMap = 0.00045 * math.pow(2, 17 - _zoomMap);
-    double radMap = _lastHeading * (math.pi / 180);
-    LatLng targetMap = LatLng(pos.latitude + distanceMap * math.cos(radMap), pos.longitude + distanceMap * math.sin(radMap));
+    final metersAhead = 50.0 * math.pow(2, 17 - _zoomMap).toDouble();
+    final headingRadians = _lastHeading * (math.pi / 180);
+    final cosLatitude = math.cos(pos.latitude * math.pi / 180);
+    final lonMetersPerDegree = 111320.0 *
+        (cosLatitude.abs() < 0.01 ? 0.01 : cosLatitude);
+    final targetMap = LatLng(
+      pos.latitude + metersAhead * math.cos(headingRadians) / 111320.0,
+      pos.longitude + metersAhead * math.sin(headingRadians) / lonMetersPerDegree,
+    );
     
     // Sat map is centered directly on the car
     LatLng targetSat = LatLng(pos.latitude, pos.longitude);
@@ -255,7 +272,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 controller: _mapController,
                                 url: _osmTileUrl,
                                 zoom: _zoomMap,
-                                isMap1: true,
                                 onZoomChange: (z) => _zoomMap = z,
                               ),
                               const Positioned(
@@ -293,7 +309,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 controller: _satController,
                                 url: _esriSatelliteUrl,
                                 zoom: _zoomSat,
-                                isMap1: false,
                                 onZoomChange: (z) => _zoomSat = z,
                               ),
                               const Positioned(
@@ -351,7 +366,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     required MapController controller,
     required String url,
     required double zoom,
-    required bool isMap1,
     required Function(double) onZoomChange,
   }) {
     LatLng centerPos = _currentPosition != null ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) : const LatLng(36.7538, 3.0588);
@@ -379,6 +393,7 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
         ),
         if (_currentPosition != null)
           MarkerLayer(
+            rotate: false,
             markers: [
               Marker(
                 point: centerPos,
