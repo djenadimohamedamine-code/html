@@ -3,7 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'dart:math' as math;
+import '../core/vehicle_marker_heading.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -39,8 +39,11 @@ class _MapPageState extends State<MapPage> {
 
   StreamSubscription<Position>? _positionStream;
 
-  static const String _googleTrafficUrl    = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-  static const String _googleSatelliteUrl  = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+  // Public key-free sources. Neither contains real-time traffic data.
+  static const String _osmTileUrl =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const String _esriSatelliteUrl =
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   @override
   void initState() {
@@ -58,7 +61,8 @@ class _MapPageState extends State<MapPage> {
     double diff = target - current;
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
-    return current + diff * 0.08;
+    final smoothed = current + diff * 0.25;
+    return (smoothed % 360 + 360) % 360;
   }
 
   Future<void> _startLocationTracking() async {
@@ -92,16 +96,18 @@ class _MapPageState extends State<MapPage> {
       double currentHeading = _lastHeading;
       // On baisse la limite à 1.5 km/h pour que la voiture tourne même à très faible allure
       if (speedKmh > 1.5) {
-        if (pos.heading > 0.0) {
+        // 0° is a valid north heading, not an invalid/missing GPS measurement.
+        if (pos.heading >= 0.0 && pos.heading.isFinite) {
           currentHeading = pos.heading;
-        } else if (_currentPosition != null) {
-          // CALCUL MANUEL : Certains téléphones Android renvoient 0.0 pour le cap.
-          // On le calcule nous-mêmes grâce à l'ancienne et la nouvelle position GPS.
+        } else if (_currentPosition != null &&
+            Geolocator.distanceBetween(
+              _currentPosition!.latitude, _currentPosition!.longitude,
+              pos.latitude, pos.longitude,
+            ) > 3.0) {
           currentHeading = Geolocator.bearingBetween(
             _currentPosition!.latitude, _currentPosition!.longitude,
-            pos.latitude, pos.longitude
+            pos.latitude, pos.longitude,
           );
-          if (currentHeading < 0) currentHeading += 360;
         }
       }
       
@@ -125,8 +131,23 @@ class _MapPageState extends State<MapPage> {
   void _followPosition(Position pos, double speedKmh) {
     if (!mounted) return;
     double targetZoom = (speedKmh > 80) ? 16.0 : (speedKmh > 40) ? 17.0 : 18.2;
-    final offsetLat = pos.latitude + 0.0004;
-    _mapController.move(LatLng(offsetLat, pos.longitude), targetZoom);
+    // A fixed northward offset misplaces the car when heading south.
+    _mapController.move(LatLng(pos.latitude, pos.longitude), targetZoom);
+  }
+
+  void _chooseDestination(LatLng destination) {
+    if (_currentPosition == null) return;
+    setState(() {
+      _destination = destination;
+      _routePoints = [];
+      _navigationSteps = [];
+      _currentStepIndex = 0;
+      _isFollowing = true;
+    });
+    _getRoute(
+      LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+      destination,
+    );
   }
 
   Future<void> _getRoute(LatLng start, LatLng end) async {
@@ -268,6 +289,7 @@ class _MapPageState extends State<MapPage> {
             options: MapOptions(
               initialCenter: centerPos,
               initialZoom: 18.2,
+              onLongPress: (_, point) => _chooseDestination(point),
               onPositionChanged: (pos, hasGesture) {
                 // Dès que l'utilisateur touche la carte, on arrête le suivi auto définitivement
                 if (hasGesture && _isFollowing) {
@@ -277,9 +299,9 @@ class _MapPageState extends State<MapPage> {
             ),
             children: [
               TileLayer(
-                urlTemplate: _satelliteMode ? _googleSatelliteUrl : _googleTrafficUrl,
+                urlTemplate: _satelliteMode ? _esriSatelliteUrl : _osmTileUrl,
                 userAgentPackageName: 'com.mimo.spark',
-                maxZoom: 20,
+                maxZoom: 19,
               ),
               if (_routePoints.isNotEmpty)
                 PolylineLayer(
@@ -304,31 +326,68 @@ class _MapPageState extends State<MapPage> {
                   if (_currentPosition != null)
                     Marker(
                       point: centerPos,
-                      width: 150, height: 150,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 75, height: 75,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.blue.withOpacity(0.15)),
+                      width: 140, height: 140,
+                      child: Center(
+                        child: Transform.rotate(
+                          // With MarkerLayer.rotate=false, marker follows the
+                          // camera. Do not subtract camera.rotation again.
+                          angle: VehicleMarkerHeading.rotationRadians(
+                            _lastHeading,
                           ),
-                          Transform.rotate(
-                            // +45.0 : Corrige le fait que l'image d'origine (PNG) est dessinée en diagonale (en haut à gauche)
-                            // - rotation.camera garde la voiture sur la route même si on tourne la map
-                            angle: (_lastHeading - _mapController.camera.rotation + 225.0) * (math.pi / 180),
-                            child: LayoutBuilder(builder: (context, constraints) {
-                              final mapZoom = _mapController.camera.zoom;
-                              final carSize = (mapZoom * 4.5).clamp(55.0, 100.0);
-                              return Image.asset('assets/images/Adobe Express - file.png', width: carSize, height: carSize);
-                            }),
+                          child: Image.asset(
+                            'assets/images/Adobe Express - file.png',
+                            width: 132,
+                            height: 132,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            gaplessPlayback: true,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                 ],
               ),
             ],
           ),
+
+          // Attribution is visible, and live traffic is not falsely advertised.
+          Positioned(
+            bottom: 3,
+            left: 6,
+            right: 6,
+            child: IgnorePointer(
+              child: Text(
+                _satelliteMode
+                    ? 'Imagerie © Esri — sans trafic en temps réel'
+                    : '© OpenStreetMap contributors — sans trafic en temps réel',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: Colors.white,
+                  shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                ),
+              ),
+            ),
+          ),
+
+          if (_destination == null)
+            const Positioned(
+              top: 90,
+              left: 12,
+              right: 12,
+              child: IgnorePointer(
+                child: Center(
+                  child: Text(
+                    'Appui long sur la carte : choisir une destination',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // BANDEAU DE NAVIGATION
           if (_destination != null && _navigationSteps.isNotEmpty)
