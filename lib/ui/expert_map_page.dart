@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import '../core/vehicle_marker_heading.dart';
 
 class ExpertMapPage extends StatefulWidget {
   const ExpertMapPage({super.key});
@@ -23,10 +24,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
   double _smoothedSpeed = 0;
   double _distanceKm = 0.0; // Distance placeholder or calculated
   
-  // L'image spark alpha pointe vers le haut-droit (-45° de l'axe Nord).
-  // On soustrait 45° pour qu'elle pointe Nord quand heading=0
-  static const double _imageRotationOffset = -45.0;
-
   int _viewMode = 0; // 0 = Split, 1 = Map Full, 2 = Sat Full
   double _zoomMap = 16.5;
   double _zoomSat = 14.0;
@@ -66,7 +63,8 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     double diff = target - current;
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
-    return current + diff * 0.08;
+    final smoothed = current + diff * 0.25;
+    return (smoothed % 360 + 360) % 360;
   }
 
   Future<void> _startLocationTracking() async {
@@ -99,7 +97,7 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
 
       // On ne met à jour le cap (heading) que si la voiture roule (éviter qu'elle tourne sur elle-même au feu rouge)
       double currentHeading = _lastHeading;
-      if (speedKmh > 3.0 && pos.heading >= 0) {
+      if (speedKmh > 3.0 && pos.heading >= 0 && pos.heading.isFinite) {
         currentHeading = pos.heading;
       }
       
@@ -353,34 +351,32 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
         },
       ),
       children: [
-        TileLayer(urlTemplate: url, maxZoom: 19, keepBuffer: 5), // Supprimé tileDisplay.fadeIn pour éviter le fond blanc
+        TileLayer(
+          urlTemplate: url,
+          userAgentPackageName: 'com.mimo.spark',
+          maxZoom: 19,
+          keepBuffer: 5,
+        ),
         if (_currentPosition != null)
           MarkerLayer(
             markers: [
               Marker(
                 point: centerPos,
                 width: 150, height: 150,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Transform.rotate(
-                      angle: isMap1 ? 0 : _lastHeading * (math.pi / 180), // Map1 rotates the whole map, so car stays pointing up
-                      child: Container(
-                        width: (40 + (zoom - 12) * 20).clamp(20, 150),
-                        height: (40 + (zoom - 12) * 20).clamp(20, 150),
-                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, spreadRadius: 2)]),
-                      ),
+                child: Center(
+                  child: Transform.rotate(
+                    // MarkerLayer.rotate=false: it follows the map rotation.
+                    // Use GPS heading + one shared photo orientation offset.
+                    angle: VehicleMarkerHeading.rotationRadians(_lastHeading),
+                    child: Image.asset(
+                      'assets/images/Adobe Express - file.png',
+                      width: (80 + (zoom - 12) * 35).clamp(80.0, 145.0),
+                      height: (80 + (zoom - 12) * 35).clamp(80.0, 145.0),
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      gaplessPlayback: true,
                     ),
-                    Transform.rotate(
-                      angle: (isMap1 ? _imageRotationOffset : (_lastHeading + _imageRotationOffset)) * (math.pi / 180),
-                      child: Image.asset(
-                        'assets/images/Adobe Express - file.png',
-                        width: (80 + (zoom - 12) * 35).clamp(40, 250),
-                        height: (80 + (zoom - 12) * 35).clamp(40, 250),
-                        fit: BoxFit.contain, filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
