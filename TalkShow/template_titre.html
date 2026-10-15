@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>TalkShow — POP TV — Titre Indépendant</title>
     <link rel="stylesheet" href="assets/talkshow.css">
+    <link rel="stylesheet" href="assets/v1_warm.css">
 </head>
 <body>
     <div class="canvas">
-        <div class="ts-titleband">
+        <div class="ts-titleband" style="opacity:0;">
             <div class="ts-titleband-top">
                 <div class="ts-titleband-main" lang="ar">العنوان الرئيسي</div>
             </div>
@@ -46,18 +47,31 @@
             band.style.opacity = "0";
             band.style.transform = outTo;
             
-            // Animation WAAPI (Fade-in + léger slide-up)
+                        var total = inDur + holdMs + outDur;
+
+            /*
+             * IMPORTANT :
+             * easing global LINEAR = timings exacts.
+             * 0-80 ms      : transparent
+             * 80-480 ms    : entrée
+             * 480-4560 ms  : maintien
+             * 4560-4960 ms : sortie
+             * 4960-5000 ms : transparent
+             */
             var kf = [
-                { opacity: 0, transform: outTo, offset: 0 },
-                { opacity: 1, transform: "translateY(0)", offset: inDur / (inDur + holdMs + outDur) },
-                { opacity: 1, transform: "translateY(0)", offset: (inDur + holdMs) / (inDur + holdMs + outDur) },
+                { opacity: 0, transform: outTo, offset: 0,
+                  easing: "cubic-bezier(0.22, 0.8, 0.24, 1)" },
+                { opacity: 1, transform: "translateY(0)", offset: inDur / total,
+                  easing: "linear" },
+                { opacity: 1, transform: "translateY(0)", offset: (inDur + holdMs) / total,
+                  easing: "cubic-bezier(0.4, 0, 0.6, 1)" },
                 { opacity: 0, transform: outTo, offset: 1 }
             ];
-            
+
             band.animate(kf, {
                 delay: 80,
-                duration: inDur + holdMs + outDur,
-                easing: "ease-in-out",
+                duration: total,
+                easing: "linear",
                 fill: "both"
             });
         }
