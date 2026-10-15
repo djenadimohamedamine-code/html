@@ -1,0 +1,67 @@
+/* TV TC — FAMILLE V1 ORANGE — CORRECTION */
+:root {
+    --v1-orange-deep:   #5A1800;
+    --v1-orange-dark:   #7A2400;
+    --v1-orange-main:   #D85A08;
+    --v1-orange-warm:   #F07818;
+    --v1-orange-gold:   #F6A43A;
+    --v1-white:         #FFFFFF;
+}
+
+/* TITRE 1 */
+.ts-titleband-top::before {
+    background: linear-gradient(
+        90deg,
+        var(--v1-orange-dark) 0%,
+        var(--v1-orange-main) 48%,
+        var(--v1-orange-warm) 100%
+    ) !important;
+}
+
+.ts-titleband-bottom::before {
+    background: linear-gradient(
+        90deg,
+        var(--v1-orange-deep) 0%,
+        #8C2D00 55%,
+        #B63E00 100%
+    ) !important;
+}
+
+.ts-titleband-separator {
+    background-color: var(--v1-orange-gold) !important;
+    opacity: 0.58 !important;
+}
+
+.ts-titleband-main,
+.ts-titleband-sub {
+    color: var(--v1-white) !important;
+}
+
+/* SYNTHÉ 1 — même famille couleur */
+.ts-s1-name-band::before {
+    background: linear-gradient(
+        90deg,
+        var(--v1-orange-dark) 0%,
+        var(--v1-orange-main) 48%,
+        var(--v1-orange-warm) 100%
+    ) !important;
+}
+
+.ts-s1-role-band::before {
+    background: linear-gradient(
+        90deg,
+        var(--v1-orange-deep) 0%,
+        #8C2D00 55%,
+        #B63E00 100%
+    ) !important;
+}
+
+.ts-s1-separator {
+    background: var(--v1-orange-gold) !important;
+    opacity: 0.58 !important;
+}
+
+.ts-s1-name,
+.ts-s1-role {
+    color: var(--v1-white) !important;
+}
