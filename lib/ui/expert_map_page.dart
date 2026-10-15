@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import '../core/vehicle_marker_heading.dart';
 
 class ExpertMapPage extends StatefulWidget {
   const ExpertMapPage({super.key});
@@ -23,10 +24,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
   double _smoothedSpeed = 0;
   double _distanceKm = 0.0; // Distance placeholder or calculated
   
-  // L'image spark alpha pointe vers le haut-droit (-45° de l'axe Nord).
-  // On soustrait 45° pour qu'elle pointe Nord quand heading=0
-  static const double _imageRotationOffset = -45.0;
-
   int _viewMode = 0; // 0 = Split, 1 = Map Full, 2 = Sat Full
   double _zoomMap = 16.5;
   double _zoomSat = 14.0;
@@ -66,7 +63,8 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     double diff = target - current;
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
-    return current + diff * 0.08;
+    final smoothed = current + diff * 0.25;
+    return (smoothed % 360 + 360) % 360;
   }
 
   Future<void> _startLocationTracking() async {
@@ -99,16 +97,27 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
 
       // On ne met à jour le cap (heading) que si la voiture roule (éviter qu'elle tourne sur elle-même au feu rouge)
       double currentHeading = _lastHeading;
-      if (speedKmh > 3.0 && pos.heading >= 0) {
+      if (speedKmh > 3.0 && pos.heading >= 0 && pos.heading.isFinite) {
         currentHeading = pos.heading;
       }
       
       double smoothed = _smoothAngle(_lastHeading, currentHeading);
 
+      double traveledMeters = 0.0;
+      if (_currentPosition != null) {
+        traveledMeters = Geolocator.distanceBetween(
+          _currentPosition!.latitude, _currentPosition!.longitude,
+          pos.latitude, pos.longitude,
+        );
+      }
       setState(() {
         _currentPosition = pos;
         _lastHeading = smoothed;
-        _distanceKm += (speedKmh / 3600) * (5 / 1000); // Rough simulation for demo
+        // Count only plausible GPS movement, never a simulated fixed increment.
+        if (speedKmh > 2 && pos.accuracy <= 30 &&
+            traveledMeters > 2 && traveledMeters < 150) {
+          _distanceKm += traveledMeters / 1000.0;
+        }
       });
 
       if (_smoothedSpeed > 2) {
@@ -121,9 +130,15 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     _moveTimer?.cancel();
     
     // Offset for Map (Waze style, car at bottom)
-    double distanceMap = 0.00045 * math.pow(2, 17 - _zoomMap);
-    double radMap = _lastHeading * (math.pi / 180);
-    LatLng targetMap = LatLng(pos.latitude + distanceMap * math.cos(radMap), pos.longitude + distanceMap * math.sin(radMap));
+    final metersAhead = 50.0 * math.pow(2, 17 - _zoomMap).toDouble();
+    final headingRadians = _lastHeading * (math.pi / 180);
+    final cosLatitude = math.cos(pos.latitude * math.pi / 180);
+    final lonMetersPerDegree = 111320.0 *
+        (cosLatitude.abs() < 0.01 ? 0.01 : cosLatitude);
+    final targetMap = LatLng(
+      pos.latitude + metersAhead * math.cos(headingRadians) / 111320.0,
+      pos.longitude + metersAhead * math.sin(headingRadians) / lonMetersPerDegree,
+    );
     
     // Sat map is centered directly on the car
     LatLng targetSat = LatLng(pos.latitude, pos.longitude);
@@ -131,24 +146,37 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     _moveTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
       if (!mounted) { timer.cancel(); return; }
 
-      // Map Update
-      final currentMap = _mapController.camera.center;
-      double latMap = currentMap.latitude + (targetMap.latitude - currentMap.latitude) * 0.1;
-      double lngMap = currentMap.longitude + (targetMap.longitude - currentMap.longitude) * 0.1;
-      double rotMap = -_lastHeading % 360;
-      if (rotMap > 180) rotMap -= 360;
-      if (rotMap < -180) rotMap += 360;
-      _mapController.moveAndRotate(LatLng(latMap, lngMap), _zoomMap, rotMap);
+      // Full-screen view removes the other map from the widget tree.
+      // Never access a detached MapController.camera.
+      bool mapDone = true;
+      bool satDone = true;
 
-      // Sat Update (No rotation)
-      final currentSat = _satController.camera.center;
-      double latSat = currentSat.latitude + (targetSat.latitude - currentSat.latitude) * 0.1;
-      double lngSat = currentSat.longitude + (targetSat.longitude - currentSat.longitude) * 0.1;
-      _satController.move(LatLng(latSat, lngSat), _zoomSat);
-
-      if ((latMap - targetMap.latitude).abs() < 0.000001 && (lngMap - targetMap.longitude).abs() < 0.000001) {
-        timer.cancel();
+      if (_viewMode != 2) {
+        final currentMap = _mapController.camera.center;
+        final latMap = currentMap.latitude +
+            (targetMap.latitude - currentMap.latitude) * 0.1;
+        final lngMap = currentMap.longitude +
+            (targetMap.longitude - currentMap.longitude) * 0.1;
+        double rotMap = (-_lastHeading) % 360;
+        if (rotMap > 180) rotMap -= 360;
+        if (rotMap < -180) rotMap += 360;
+        _mapController.moveAndRotate(LatLng(latMap, lngMap), _zoomMap, rotMap);
+        mapDone = (latMap - targetMap.latitude).abs() < 0.000001 &&
+            (lngMap - targetMap.longitude).abs() < 0.000001;
       }
+
+      if (_viewMode != 1) {
+        final currentSat = _satController.camera.center;
+        final latSat = currentSat.latitude +
+            (targetSat.latitude - currentSat.latitude) * 0.1;
+        final lngSat = currentSat.longitude +
+            (targetSat.longitude - currentSat.longitude) * 0.1;
+        _satController.move(LatLng(latSat, lngSat), _zoomSat);
+        satDone = (latSat - targetSat.latitude).abs() < 0.000001 &&
+            (lngSat - targetSat.longitude).abs() < 0.000001;
+      }
+
+      if (mapDone && satDone) timer.cancel();
     });
   }
 
@@ -257,8 +285,17 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 controller: _mapController,
                                 url: _osmTileUrl,
                                 zoom: _zoomMap,
-                                isMap1: true,
                                 onZoomChange: (z) => _zoomMap = z,
+                              ),
+                              const Positioned(
+                                right: 6,
+                                bottom: 3,
+                                child: IgnorePointer(
+                                  child: Text(
+                                    '© OpenStreetMap contributors — sans trafic temps réel',
+                                    style: TextStyle(fontSize: 9, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 top: 10, right: 10,
@@ -285,8 +322,17 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
                                 controller: _satController,
                                 url: _esriSatelliteUrl,
                                 zoom: _zoomSat,
-                                isMap1: false,
                                 onZoomChange: (z) => _zoomSat = z,
+                              ),
+                              const Positioned(
+                                right: 6,
+                                bottom: 3,
+                                child: IgnorePointer(
+                                  child: Text(
+                                    'Imagerie © Esri',
+                                    style: TextStyle(fontSize: 9, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 top: 10, left: 10,
@@ -333,7 +379,6 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
     required MapController controller,
     required String url,
     required double zoom,
-    required bool isMap1,
     required Function(double) onZoomChange,
   }) {
     LatLng centerPos = _currentPosition != null ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) : const LatLng(36.7538, 3.0588);
@@ -353,34 +398,33 @@ class _ExpertMapPageState extends State<ExpertMapPage> {
         },
       ),
       children: [
-        TileLayer(urlTemplate: url, maxZoom: 19, keepBuffer: 5), // Supprimé tileDisplay.fadeIn pour éviter le fond blanc
+        TileLayer(
+          urlTemplate: url,
+          userAgentPackageName: 'com.mimo.spark',
+          maxZoom: 19,
+          keepBuffer: 5,
+        ),
         if (_currentPosition != null)
           MarkerLayer(
+            rotate: false,
             markers: [
               Marker(
                 point: centerPos,
                 width: 150, height: 150,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Transform.rotate(
-                      angle: isMap1 ? 0 : _lastHeading * (math.pi / 180), // Map1 rotates the whole map, so car stays pointing up
-                      child: Container(
-                        width: (40 + (zoom - 12) * 20).clamp(20, 150),
-                        height: (40 + (zoom - 12) * 20).clamp(20, 150),
-                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, spreadRadius: 2)]),
-                      ),
+                child: Center(
+                  child: Transform.rotate(
+                    // MarkerLayer.rotate=false: it follows the map rotation.
+                    // Use GPS heading + one shared photo orientation offset.
+                    angle: VehicleMarkerHeading.rotationRadians(_lastHeading),
+                    child: Image.asset(
+                      'assets/images/Adobe Express - file.png',
+                      width: (80 + (zoom - 12) * 35).clamp(80.0, 145.0),
+                      height: (80 + (zoom - 12) * 35).clamp(80.0, 145.0),
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      gaplessPlayback: true,
                     ),
-                    Transform.rotate(
-                      angle: (isMap1 ? _imageRotationOffset : (_lastHeading + _imageRotationOffset)) * (math.pi / 180),
-                      child: Image.asset(
-                        'assets/images/Adobe Express - file.png',
-                        width: (80 + (zoom - 12) * 35).clamp(40, 250),
-                        height: (80 + (zoom - 12) * 35).clamp(40, 250),
-                        fit: BoxFit.contain, filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
