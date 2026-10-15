@@ -232,9 +232,36 @@ class _MapPageState extends State<MapPage> {
     if (_navigationSteps.isEmpty) return;
     var step = _navigationSteps[_currentStepIndex];
     setState(() {
-      _nextInstruction = step['maneuver']['instruction'] ?? "Continuez";
+      _nextInstruction = _formatManeuver(step);
       _nextManeuverIcon = _getManeuverIcon(step['maneuver']['type'], step['maneuver']['modifier'] ?? "");
     });
+  }
+
+  // OSRM v1 returns maneuver.type/modifier, not maneuver.instruction.
+  String _formatManeuver(dynamic step) {
+    final type = step['maneuver']?['type']?.toString() ?? '';
+    final modifier = step['maneuver']?['modifier']?.toString() ?? '';
+    final road = step['name']?.toString() ?? '';
+    String action;
+    if (type == 'arrive') {
+      action = 'Vous êtes arrivé';
+    } else if (type == 'depart') {
+      action = 'Démarrer';
+    } else if (type == 'roundabout' || type == 'rotary') {
+      action = 'Au rond-point, suivez votre sortie';
+    } else if (type == 'turn' || type == 'new name' || type == 'fork') {
+      if (modifier.contains('left')) {
+        action = 'Tournez à gauche';
+      } else if (modifier.contains('right')) {
+        action = 'Tournez à droite';
+      } else {
+        action = 'Continuez';
+      }
+    } else {
+      action = 'Continuez';
+    }
+    if (road.isNotEmpty && type != 'arrive') return '$action — $road';
+    return action;
   }
 
   IconData _getManeuverIcon(String type, String modifier) {
@@ -388,6 +415,25 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
+
+          Positioned(
+            top: _destination == null ? 44 : 145,
+            right: 12,
+            child: Material(
+              color: Colors.black87,
+              shape: const CircleBorder(),
+              child: IconButton(
+                tooltip: _satelliteMode ? 'Carte routière' : 'Vue satellite',
+                icon: Icon(
+                  _satelliteMode ? Icons.map_outlined : Icons.satellite_alt_outlined,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  setState(() => _satelliteMode = !_satelliteMode);
+                },
+              ),
+            ),
+          ),
 
           // BANDEAU DE NAVIGATION
           if (_destination != null && _navigationSteps.isNotEmpty)
