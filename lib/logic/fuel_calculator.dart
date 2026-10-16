@@ -47,6 +47,78 @@ class FuelCalculator {
     print('Niveau essence calibré.');
   }
 
+  /// Capacité maximale du réservoir (35 litres pour la Spark 0.8L).
+  static const double tankCapacity = _tankCapacity;
+
+  /// Litres maximum pouvant encore être ajoutés sans déborder du réservoir.
+  double get maxAddableLiters => (_tankCapacity - currentLiters).clamp(0.0, _tankCapacity);
+
+  /// Ajoute une quantité exacte de carburant en litres (ex: station-service).
+  ///
+  /// Rejette strictement les valeurs non finies, négatives ou nulles.
+  /// Si le total dépasse 35 litres, lève une exception [StateError] sans tronquer.
+  /// Met à jour [currentLiters], persiste immédiatement dans SharedPreferences,
+  /// et réinitialise les alertes de bas niveau.
+  Future<double> addFuel(double litersAdded) async {
+    await init();
+    if (!litersAdded.isFinite || litersAdded.isNaN || litersAdded <= 0) {
+      throw ArgumentError.value(litersAdded, 'litersAdded', 'La quantité de carburant doit être positive et finie.');
+    }
+
+    final projected = currentLiters + litersAdded;
+    if (projected > _tankCapacity + 1e-6) {
+      throw StateError(
+        'Le plein ($projected L) dépasse la capacité maximale du réservoir ($_tankCapacity L).',
+      );
+    }
+
+    final previous = currentLiters;
+    currentLiters = projected.clamp(0.0, _tankCapacity);
+
+    try {
+      await _enqueueSave(currentLiters);
+    } catch (_) {
+      currentLiters = previous; // Rollback
+      rethrow;
+    }
+
+    lowFuelAlerted = false;
+    _lastAlertedKm = -1;
+    return currentLiters;
+  }
+
+  /// Annule un plein précédent en retirant les litres ajoutés de manière sécurisée.
+  ///
+  /// Ne descend jamais en-dessous de 0 litre même si du carburant a été consommé entre-temps.
+  /// Persiste le résultat immédiatement dans SharedPreferences.
+  Future<double> cancelFuelRefill(double litersAdded, {double? levelBefore}) async {
+    await init();
+    if (!litersAdded.isFinite || litersAdded.isNaN || litersAdded <= 0) {
+      throw ArgumentError.value(litersAdded, 'litersAdded', 'La quantité de carburant doit être positive et finie.');
+    }
+
+    final previous = currentLiters;
+    // Si aucune consommation n'a eu lieu et que le niveau antérieur exact est fourni,
+    // restaurer levelBefore si cohérent, sinon retirer les litres ajoutés en restant >= 0.
+    double newLevel;
+    if (levelBefore != null && (currentLiters - (levelBefore + litersAdded)).abs() < 1e-4) {
+      newLevel = levelBefore.clamp(0.0, _tankCapacity);
+    } else {
+      newLevel = (currentLiters - litersAdded).clamp(0.0, _tankCapacity);
+    }
+
+    currentLiters = newLevel;
+
+    try {
+      await _enqueueSave(currentLiters);
+    } catch (_) {
+      currentLiters = previous; // Rollback
+      rethrow;
+    }
+
+    return currentLiters;
+  }
+
   // Mise à jour par la consommation calculée (MAF ou MAP)
   void updateVirtualFuel(double lph, double secondsPassed) {
     if (!_isInitialized || !lph.isFinite || !secondsPassed.isFinite || lph <= 0 || secondsPassed <= 0) return;

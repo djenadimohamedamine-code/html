@@ -140,4 +140,109 @@ void main() {
           closeTo((2 / (14.7 * 750)) * 3600, 1e-9));
     });
   });
+
+  group('Fuel refill (Fonctionnalité 1 — V3.1)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+    });
+
+    test('Ajout de 10 L à 9,3 L donne exactement 19,3 L', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 9.3});
+      final calculator = FuelCalculator();
+      await calculator.init();
+      expect(calculator.currentLiters, closeTo(9.3, 1e-9));
+
+      final newLevel = await calculator.addFuel(10.0);
+      expect(newLevel, closeTo(19.3, 1e-9));
+      expect(calculator.currentLiters, closeTo(19.3, 1e-9));
+
+      // Vérifier la persistance immédiate dans SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getDouble('last_fuel_level'), closeTo(19.3, 1e-9));
+    });
+
+    test('Rejet strict du dépassement de 35 L avec exception StateError (pas de troncature)', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 9.3});
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      // Tenter d'ajouter 30 L (total = 39.3 L > 35 L)
+      expect(
+        () async => await calculator.addFuel(30.0),
+        throwsA(isA<StateError>()),
+      );
+
+      // Vérifier que le niveau actuel est resté intact à 9.3 L
+      expect(calculator.currentLiters, closeTo(9.3, 1e-9));
+    });
+
+    test('Rejet strict des valeurs nulles, négatives, NaN et infinies', () async {
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      expect(() async => await calculator.addFuel(0.0), throwsA(isA<ArgumentError>()));
+      expect(() async => await calculator.addFuel(-5.0), throwsA(isA<ArgumentError>()));
+      expect(() async => await calculator.addFuel(double.nan), throwsA(isA<ArgumentError>()));
+      expect(() async => await calculator.addFuel(double.infinity), throwsA(isA<ArgumentError>()));
+    });
+
+    test('Gestion des décimales et calcul exact du montant en DA', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 10.0});
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      // Ajout de 9.5 L
+      final newLevel = await calculator.addFuel(9.5);
+      expect(newLevel, closeTo(19.5, 1e-9));
+
+      // Calcul du montant en DA avec prix du litre à 50 DA
+      const pricePerLiter = 50.0;
+      final amountDa = 9.5 * pricePerLiter;
+      expect(amountDa, closeTo(475.0, 1e-9));
+    });
+
+    test('Annulation de plein : restitution sécurisée du niveau précédent', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 9.3});
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      await calculator.addFuel(10.0);
+      expect(calculator.currentLiters, closeTo(19.3, 1e-9));
+
+      // Annulation directe sans consommation
+      await calculator.cancelFuelRefill(10.0, levelBefore: 9.3);
+      expect(calculator.currentLiters, closeTo(9.3, 1e-9));
+    });
+
+    test('Annulation de plein après consommation : ne descend jamais sous 0 L', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 5.0});
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      await calculator.addFuel(5.0); // Total = 10 L
+      expect(calculator.currentLiters, closeTo(10.0, 1e-9));
+
+      // Consommer 8 L -> reste 2 L
+      calculator.updateVirtualFuel(8.0, 3600);
+      expect(calculator.currentLiters, closeTo(2.0, 1e-9));
+
+      // Annuler le plein de 5 L -> 2 L - 5 L ne devient PAS négatif mais est clampé à 0 L
+      await calculator.cancelFuelRefill(5.0);
+      expect(calculator.currentLiters, 0.0);
+    });
+
+    test('Redémarrage de l\'application : le niveau après plein est restauré', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 9.3});
+      final appSession1 = FuelCalculator();
+      await appSession1.init();
+      await appSession1.addFuel(10.0); // 19.3 L
+      await appSession1.save();
+
+      // Nouvelle instance (simulant un redémarrage de l'app)
+      final appSession2 = FuelCalculator();
+      await appSession2.init();
+      expect(appSession2.currentLiters, closeTo(19.3, 1e-9));
+      expect(appSession2.kmRestants, (19.3 / 7.5 * 100).toInt());
+    });
+  });
 }

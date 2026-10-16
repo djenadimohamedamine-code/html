@@ -18,6 +18,7 @@ import 'standalone_clock_page.dart';
 import 'engine_data_page.dart';
 import 'performance_page.dart';
 import 'fuel_gauge_widget.dart';
+import 'add_fuel_dialog.dart';
 import '../core/background_service.dart';
 import '../vocal/voice_service.dart';
 import '../vocal/tts_service.dart';
@@ -317,7 +318,16 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-
+  void _showAddFuelDialog() {
+    AddFuelDialog.show(
+      context,
+      fuelCalculator: _fuelCalculator,
+      onFuelUpdated: () {
+        if (mounted) setState(() {});
+        _addLog('Niveau carburant mis à jour : ${_fuelCalculator.currentLiters.toStringAsFixed(1)} L');
+      },
+    );
+  }
 
   // Garde anti-concurrence : évite d'appeler connect() une deuxième fois
   // si un premier appel est déjà en cours (ex: retour de Messenger pendant
@@ -654,7 +664,16 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.local_gas_station, color: Colors.orangeAccent),
+                leading: const Icon(Icons.local_gas_station, color: Colors.greenAccent),
+                title: const Text('⛽ Faire le plein', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Ajouter des litres d\'essence (station-service)', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddFuelDialog();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.tune, color: Colors.orangeAccent),
                 title: const Text('Calibrage Essence', style: TextStyle(color: Colors.orangeAccent)),
                 subtitle: const Text('Caler l\'aiguille sur ton vrai compteur', style: TextStyle(color: Colors.grey, fontSize: 11)),
                 onTap: () {
@@ -1120,6 +1139,29 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             ),
                           ),
                           const Spacer(),
+                          GestureDetector(
+                            onTap: _showAddFuelDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.greenAccent.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.greenAccent.withOpacity(0.4), width: 1.0),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, color: Colors.greenAccent, size: 10),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    "+ Plein",
+                                    style: TextStyle(color: Colors.greenAccent, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
                           const Icon(Icons.tune, color: Colors.white38, size: 14),
                         ],
                       ),
@@ -1410,24 +1452,53 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.orangeAccent.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.tune, color: Colors.orangeAccent, size: 11),
-                                SizedBox(width: 3),
-                                Text(
-                                  "CAL",
-                                  style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                key: const Key('hero_add_fuel_button'),
+                                onTap: _showAddFuelDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.greenAccent.withOpacity(0.18),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.greenAccent.withOpacity(0.4), width: 1.0),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add, color: Colors.greenAccent, size: 12),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        "+ Carburant",
+                                        style: TextStyle(color: Colors.greenAccent, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.orangeAccent.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.tune, color: Colors.orangeAccent, size: 11),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      "CAL",
+                                      style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
