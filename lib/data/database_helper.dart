@@ -327,4 +327,3 @@ class DatabaseHelper {
     return FuelRefill.fromMap(maps.first);
   }
 }
-

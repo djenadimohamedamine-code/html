@@ -543,8 +543,8 @@ class _MapPageState extends State<MapPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _distanceToNextStep > 1000 
-                                  ? "${(_distanceToNextStep/1000).toStringAsFixed(1)} km" 
+                                _distanceToNextStep > 1000
+                                  ? "${(_distanceToNextStep/1000).toStringAsFixed(1)} km"
                                   : "${_distanceToNextStep.toInt()} m",
                                 style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                               ),
