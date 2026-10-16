@@ -75,6 +75,26 @@ class FakeDatabase implements Database {
           return 1;
         }
       }
+    } else if (sql.contains('UPDATE fuel_state')) {
+      final list = tables['fuel_state'] ?? [];
+      for (var row in list) {
+        if (row['id'] == 1) {
+          final existingTs = row['updated_at'] as int? ?? 0;
+          final newTs = arguments![1] as int;
+          final conditionTs = arguments.last as int;
+          if (existingTs <= conditionTs) {
+            row['liters'] = (arguments[0] as num).toDouble();
+            row['updated_at'] = newTs;
+            row['event_type'] = arguments[2] as String;
+            row['reference_id'] = arguments[3] as String?;
+            final calibArg = arguments[4] as int?;
+            if (calibArg != null) {
+              row['last_calib_ts'] = calibArg;
+            }
+            return 1;
+          }
+        }
+      }
     }
     return 0;
   }

@@ -275,8 +275,10 @@ class DatabaseHelper {
     return res.first;
   }
 
-  /// Met à jour l'état persistant du carburant de manière durable.
+  /// Met à jour l'état persistant du carburant de manière durable et strictement atomique.
   /// Protège contre l'écrasement par des écritures asynchrones obsolètes (now < updated_at).
+  /// Exécute un UPDATE conditionnel atomique (WHERE id = 1 AND updated_at <= now) dans une transaction SQLite,
+  /// garantissant qu'aucun SELECT séparé ne peut introduire de faille de concurrence.
   Future<bool> setFuelState({
     required double liters,
     required String eventType,
@@ -286,24 +288,41 @@ class DatabaseHelper {
   }) async {
     final db = await database;
     final now = updatedAt ?? DateTime.now().millisecondsSinceEpoch;
-    final existing = await getFuelState();
-    if (existing != null) {
-      final existingTs = existing['updated_at'] as int? ?? 0;
-      // Protection anti-écrasement chronologique :
-      // Si l'écriture est strictement plus ancienne que l'état persistant existant, elle est rejetée
-      if (now < existingTs) {
+
+    return await db.transaction<bool>((txn) async {
+      // 1. UPDATE atomique conditionnel : uniquement si updated_at <= now
+      final rowsUpdated = await txn.rawUpdate('''
+        UPDATE fuel_state
+        SET liters = ?,
+            updated_at = ?,
+            event_type = ?,
+            reference_id = ?,
+            last_calib_ts = CASE WHEN ? IS NOT NULL THEN ? ELSE last_calib_ts END
+        WHERE id = 1 AND updated_at <= ?
+      ''', [liters, now, eventType, referenceId, lastCalibTs, lastCalibTs ?? 0, now]);
+
+      if (rowsUpdated > 0) {
+        return true;
+      }
+
+      // 2. Si aucune ligne n'a été modifiée, vérifier si la ligne id = 1 existe déjà
+      final existing = await txn.query('fuel_state', where: 'id = 1', limit: 1);
+      if (existing.isNotEmpty) {
+        // La ligne existe avec un updated_at plus récent (> now) : rejet atomique sans course
         return false;
       }
-    }
-    await db.insert('fuel_state', {
-      'id': 1,
-      'liters': liters,
-      'updated_at': now,
-      'event_type': eventType,
-      'reference_id': referenceId,
-      'last_calib_ts': lastCalibTs ?? (existing != null ? (existing['last_calib_ts'] as int? ?? 0) : 0),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
-    return true;
+
+      // 3. Table vide (premier enregistrement) : insertion atomique
+      await txn.insert('fuel_state', {
+        'id': 1,
+        'liters': liters,
+        'updated_at': now,
+        'event_type': eventType,
+        'reference_id': referenceId,
+        'last_calib_ts': lastCalibTs ?? 0,
+      });
+      return true;
+    });
   }
 
   /// Sauvegarde périodique de la consommation OBD2 dans fuel_state en préservant le timestamp de calibrage
