@@ -774,15 +774,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           child: Column(
                             children: [
                               if (!isHudMode) ...[
-                                _buildClock(),
-                                const SizedBox(height: 8),
                                 _buildCompactTempWidget(),
                                 const SizedBox(height: 10),
                                 _buildFuelHeroCard(),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 Row(
                                   children: [
                                     Expanded(child: _buildRpmGauge()),
+                                    const SizedBox(width: 8),
                                     Expanded(child: _buildSpeedGauge()),
                                   ],
                                 ),
@@ -843,39 +842,44 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           children: [
             Column(
               children: [
-                // Top Row: Temp (L) | Clock (C) | Distance (R)
+                // Top Row: Température (L) | RPM (R)
                 Expanded(
                   flex: 4,
                   child: Row(
                     children: [
                       Expanded(child: _buildTempGauge(isLandscape: true)),
-                      Expanded(
-                        flex: 2,
-                        child: _buildClock(isLandscape: true),
-                      ),
-                      Expanded(child: _buildRpmGauge(isLandscape: true)), // Remplacé Distance par RPM
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildRpmGauge(isLandscape: true)),
                     ],
                   ),
                 ),
-                // Bottom Row: Fuel (L) | RPM/Bat (C) | Speed (R)
+                const SizedBox(height: 8),
+                // Bottom Row: Carburant (L) | Consommation + Batterie (C) | Vitesse (R)
                 Expanded(
-                  flex: 3,
+                  flex: 4,
                   child: Row(
                     children: [
-                      Expanded(child: _buildFuelGauge(isLandscape: true)),
                       Expanded(
-                        flex: 2,
+                        flex: 4,
+                        child: _buildFuelGauge(isLandscape: true),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _buildFuelConsumptionMini(isLandscape: true),
                             const SizedBox(height: 8),
                             _buildBatteryMini(isLandscape: true),
-                            const SizedBox(height: 12),
                           ],
                         ),
                       ),
-                      Expanded(child: _buildSpeedGauge(isLandscape: true)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 4,
+                        child: _buildSpeedGauge(isLandscape: true),
+                      ),
                     ],
                   ),
                 ),
@@ -898,86 +902,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildClock({bool isLandscape = false}) {
-    // On force l'orientation landscape via MediaQuery pour plus de fiabilité
-    final bool landscape = MediaQuery.of(context).orientation == Orientation.landscape;
-    
-    return StreamBuilder(
-      stream: Stream.periodic(const Duration(seconds: 1)),
-      builder: (context, snapshot) {
-        final timeStr = DateFormat('HH:mm').format(DateTime.now());
-        
-        if (landscape) {
-          final parts = timeStr.split(':');
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(parts[0], style: const TextStyle(color: Colors.white, fontSize: 85, fontWeight: FontWeight.bold, letterSpacing: -2, shadows: [Shadow(color: const Color(0xFFFF3333), blurRadius: 10)])),
-                  Text(':', style: TextStyle(color: const Color(0xFFFF3333).withOpacity(0.5), fontSize: 65, fontWeight: FontWeight.w200)),
-                  Text(parts[1], style: const TextStyle(color: Colors.white, fontSize: 85, fontWeight: FontWeight.w300, letterSpacing: -2)),
-                  const SizedBox(width: 8),
-                  Text(DateFormat('ss').format(DateTime.now()), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w400)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(width: 60, height: 1, decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, const Color(0xFFFF3333).withOpacity(0.3)]))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now()).toUpperCase(),
-                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2),
-                    ),
-                  ),
-                  Container(width: 60, height: 1, decoration: BoxDecoration(gradient: LinearGradient(colors: [const Color(0xFFFF3333).withOpacity(0.3), Colors.transparent]))),
-                ],
-              ),
-            ],
-          );
-        }
-        
-        final parts = timeStr.split(':');
-        return Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(parts[0], style: const TextStyle(color: Colors.white, fontSize: 85, fontWeight: FontWeight.bold, letterSpacing: -2, shadows: [Shadow(color: const Color(0xFFFF3333), blurRadius: 10)])),
-                Text(':', style: TextStyle(color: const Color(0xFFFF3333).withOpacity(0.5), fontSize: 65, fontWeight: FontWeight.w200)),
-                Text(parts[1], style: const TextStyle(color: Colors.white, fontSize: 85, fontWeight: FontWeight.w300, letterSpacing: -2)),
-                const SizedBox(width: 8),
-                Text(DateFormat('ss').format(DateTime.now()), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w400)),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(width: 40, height: 1, decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, const Color(0xFFFF3333).withOpacity(0.3)]))),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now()).toUpperCase(),
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2),
-                  ),
-                ),
-                Container(width: 40, height: 1, decoration: BoxDecoration(gradient: LinearGradient(colors: [const Color(0xFFFF3333).withOpacity(0.3), Colors.transparent]))),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 
   Widget _buildBatteryMini({bool isLandscape = false}) {
     return Container(
@@ -1248,8 +1173,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         : 0.0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0),
-      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+      margin: const EdgeInsets.symmetric(horizontal: 2.0),
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
       decoration: BoxDecoration(
         color: const Color(0xFF0F0F0F).withOpacity(0.85),
         borderRadius: BorderRadius.circular(16),
@@ -1265,15 +1190,15 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: statusColor.withOpacity(0.15),
               border: Border.all(color: statusColor.withOpacity(0.4), width: 1.2),
             ),
-            child: Icon(Icons.thermostat, color: statusColor, size: 16),
+            child: Icon(Icons.thermostat, color: statusColor, size: 15),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -1282,7 +1207,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 tempText,
                 style: TextStyle(
                   color: statusColor,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
                 ),
@@ -1291,15 +1216,15 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 " °C",
                 style: TextStyle(
                   color: statusColor,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(6),
@@ -1309,7 +1234,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               statusLabel,
               style: TextStyle(
                 color: statusColor,
-                fontSize: 8.5,
+                fontSize: 8.0,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.8,
               ),
@@ -1318,7 +1243,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           const Spacer(),
           // Mini indicateur visuel (bargraph 4 couleurs : 31% Bleu, 34% Vert, 8% Orange, 27% Rouge)
           SizedBox(
-            width: 110,
+            width: 75,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
@@ -1326,7 +1251,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: Container(
-                    height: 6,
+                    height: 5,
                     color: Colors.white10,
                     child: Stack(
                       children: [
@@ -1420,104 +1345,90 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Jauge réelle ta.jpeg avec aiguille unique agrandie à 142 pt
+                // Jauge réelle ta.jpeg avec aiguille unique proportionnée à 132 pt pour iPhone 11 Pro
                 FuelGaugeWidget(
                   fuelLiters: fuelVal,
-                  size: 142,
+                  size: 132,
                   showGlow: true,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 // Bloc télémétrique droit haute visibilité
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Header : Titre + CAL button
+                      // Header : Titre + Bouton Plein + Badge CAL
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.local_gas_station, color: Colors.orangeAccent, size: 14),
-                              SizedBox(width: 4),
-                              Text(
-                                "CARBURANT SPARK",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  letterSpacing: 1.2,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          const Icon(Icons.local_gas_station, color: Colors.orangeAccent, size: 13),
+                          const SizedBox(width: 3),
+                          const Expanded(
+                            child: Text(
+                              "CARBURANT",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                letterSpacing: 0.8,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                key: const Key('hero_add_fuel_button'),
-                                onTap: _showAddFuelDialog,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.greenAccent.withOpacity(0.18),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.greenAccent.withOpacity(0.4), width: 1.0),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add, color: Colors.greenAccent, size: 12),
-                                      SizedBox(width: 3),
-                                      Text(
-                                        "+ Carburant",
-                                        style: TextStyle(color: Colors.greenAccent, fontSize: 9.5, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                          GestureDetector(
+                            key: const Key('hero_add_fuel_button'),
+                            onTap: _showAddFuelDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: Colors.greenAccent.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.greenAccent.withOpacity(0.5), width: 1.0),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.orangeAccent.withOpacity(0.18),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.tune, color: Colors.orangeAccent, size: 11),
-                                    SizedBox(width: 3),
-                                    Text(
-                                      "CAL",
-                                      style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, color: Colors.greenAccent, size: 10),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    "+ Plein",
+                                    style: TextStyle(color: Colors.greenAccent, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.orangeAccent.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
+                            ),
+                            child: const Text(
+                              "CAL",
+                              style: TextStyle(color: Colors.orangeAccent, fontSize: 8.5, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      // Autonomie héro cohérente avec la consommation de référence (7.5 L/100)
+                      const SizedBox(height: 5),
+                      // Autonomie héro
                       const Text(
-                        "AUTONOMIE ESTIMÉE (RÉF. 7.5 L/100)",
+                        "AUTONOMIE ESTIMÉE",
                         style: TextStyle(
                           color: Colors.white38,
-                          fontSize: 8.5,
+                          fontSize: 8.0,
                           fontWeight: FontWeight.w600,
-                          letterSpacing: 0.6,
+                          letterSpacing: 0.5,
                         ),
                       ),
                       Text(
                         '$kmRestants KM',
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.5,
                         ),
@@ -1532,25 +1443,29 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             '${fuelVal.toStringAsFixed(1)} L',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            ' / 35 L  (${(fuelPercent * 100).toStringAsFixed(0)}%)',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '/ 35 L (${(fuelPercent * 100).toStringAsFixed(0)}%)',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       // Barre de progression carburant
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: Container(
-                          height: 6,
+                          height: 5,
                           color: Colors.white10,
                           child: FractionallySizedBox(
                             alignment: Alignment.centerLeft,
@@ -1561,24 +1476,26 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       // Consommation instantanée distincte
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Instantanée : $instantConsoStr",
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: Text(
+                              instantConsoStr,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const Text(
-                            "Toucher pour calibrer",
+                            "Toucher = CAL",
                             style: TextStyle(
                               color: Colors.white38,
-                              fontSize: 8.5,
+                              fontSize: 8.0,
                             ),
                           ),
                         ],
