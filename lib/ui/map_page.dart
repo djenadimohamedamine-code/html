@@ -439,40 +439,80 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
+          // BOUTON RETOUR VERS LE TABLEAU DE BORD
+          Positioned(
+            top: 0,
+            left: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, left: 12),
+                child: Material(
+                  color: Colors.black87,
+                  shape: const CircleBorder(),
+                  elevation: 6,
+                  shadowColor: Colors.black54,
+                  child: IconButton(
+                    key: const Key('map_back_button'),
+                    tooltip: 'Retour au tableau de bord',
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.maybePop(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           if (_destination == null)
-            const Positioned(
-              top: 90,
-              left: 12,
-              right: 12,
-              child: IgnorePointer(
-                child: Center(
-                  child: Text(
-                    'Appui long sur la carte : choisir une destination',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+            Positioned(
+              top: 0,
+              left: 60,
+              right: 60,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Text(
+                        'Appui long sur la carte : choisir une destination',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 6)],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
 
+          // BOUTON BASCULE CARTE / SATELLITE
           Positioned(
-            top: _destination == null ? 44 : 145,
-            right: 12,
-            child: Material(
-              color: Colors.black87,
-              shape: const CircleBorder(),
-              child: IconButton(
-                tooltip: _satelliteMode ? 'Carte routière' : 'Vue satellite',
-                icon: Icon(
-                  _satelliteMode ? Icons.map_outlined : Icons.satellite_alt_outlined,
-                  color: Colors.white,
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: (_destination != null && _navigationSteps.isNotEmpty) ? 105 : 8,
+                  right: 12,
                 ),
-                onPressed: () {
-                  setState(() => _satelliteMode = !_satelliteMode);
-                },
+                child: Material(
+                  color: Colors.black87,
+                  shape: const CircleBorder(),
+                  elevation: 6,
+                  shadowColor: Colors.black54,
+                  child: IconButton(
+                    tooltip: _satelliteMode ? 'Carte routière' : 'Vue satellite',
+                    icon: Icon(
+                      _satelliteMode ? Icons.map_outlined : Icons.satellite_alt_outlined,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setState(() => _satelliteMode = !_satelliteMode);
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -480,33 +520,41 @@ class _MapPageState extends State<MapPage> {
           // BANDEAU DE NAVIGATION
           if (_destination != null && _navigationSteps.isNotEmpty)
             Positioned(
-              top: 40, left: 10, right: 10,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B5E20),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 15)],
-                ),
-                child: Row(
-                  children: [
-                    Icon(_nextManeuverIcon, color: Colors.white, size: 50),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _distanceToNextStep > 1000 
-                              ? "${(_distanceToNextStep/1000).toStringAsFixed(1)} km" 
-                              : "${_distanceToNextStep.toInt()} m",
-                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
-                          ),
-                          Text(_nextInstruction, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500), maxLines: 2),
-                        ],
-                      ),
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 68, right: 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B5E20),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 15)],
                     ),
-                  ],
+                    child: Row(
+                      children: [
+                        Icon(_nextManeuverIcon, color: Colors.white, size: 44),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _distanceToNextStep > 1000 
+                                  ? "${(_distanceToNextStep/1000).toStringAsFixed(1)} km" 
+                                  : "${_distanceToNextStep.toInt()} m",
+                                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                              ),
+                              Text(_nextInstruction, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
