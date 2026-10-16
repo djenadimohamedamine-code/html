@@ -276,7 +276,8 @@ class DatabaseHelper {
   }
 
   /// Met à jour l'état persistant du carburant de manière durable.
-  Future<void> setFuelState({
+  /// Protège contre l'écrasement par des écritures asynchrones obsolètes (now < updated_at).
+  Future<bool> setFuelState({
     required double liters,
     required String eventType,
     String? referenceId,
@@ -285,30 +286,35 @@ class DatabaseHelper {
   }) async {
     final db = await database;
     final now = updatedAt ?? DateTime.now().millisecondsSinceEpoch;
+    final existing = await getFuelState();
+    if (existing != null) {
+      final existingTs = existing['updated_at'] as int? ?? 0;
+      // Protection anti-écrasement chronologique :
+      // Si l'écriture est strictement plus ancienne que l'état persistant existant, elle est rejetée
+      if (now < existingTs) {
+        return false;
+      }
+    }
     await db.insert('fuel_state', {
       'id': 1,
       'liters': liters,
       'updated_at': now,
       'event_type': eventType,
       'reference_id': referenceId,
-      'last_calib_ts': lastCalibTs ?? 0,
+      'last_calib_ts': lastCalibTs ?? (existing != null ? (existing['last_calib_ts'] as int? ?? 0) : 0),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+    return true;
   }
 
-  /// Sauvegarde périodique de la consommation OBD2 dans fuel_state en préservant le timestamp de calibrage.
-  Future<void> updateFuelLevelFromObd(double currentLiters) async {
-    final db = await database;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final existing = await getFuelState();
-    final calibTs = existing != null ? (existing['last_calib_ts'] as int? ?? 0) : 0;
-    await db.insert('fuel_state', {
-      'id': 1,
-      'liters': currentLiters,
-      'updated_at': now,
-      'event_type': 'OBD_SYNC',
-      'reference_id': null,
-      'last_calib_ts': calibTs,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  /// Sauvegarde périodique de la consommation OBD2 dans fuel_state en préservant le timestamp de calibrage
+  /// et en rejetant toute écriture obsolète vis-à-vis d'un plein ou calibrage plus récent.
+  Future<bool> updateFuelLevelFromObd(double currentLiters, {int? timestamp}) async {
+    final now = timestamp ?? DateTime.now().millisecondsSinceEpoch;
+    return setFuelState(
+      liters: currentLiters,
+      eventType: 'OBD_SYNC',
+      updatedAt: now,
+    );
   }
 
   // ── Pleins de carburant (fuel_refills) ───────────────────────────────────
@@ -358,14 +364,21 @@ class DatabaseHelper {
         'expense_id': expenseId,
       });
 
-      // 3. Mise à jour atomique de l'état du carburant dans fuel_state
+      // 3. Mise à jour atomique de l'état du carburant dans fuel_state avec garantie d'horodatage monotone
       final existingState = await txn.query('fuel_state', where: 'id = 1', limit: 1);
       final currentCalibTs = lastCalibTs ?? (existingState.isNotEmpty ? (existingState.first['last_calib_ts'] as int? ?? 0) : 0);
+      int refillCommitTs = nowMs;
+      if (existingState.isNotEmpty) {
+        final existingTs = existingState.first['updated_at'] as int? ?? 0;
+        if (refillCommitTs <= existingTs) {
+          refillCommitTs = existingTs + 1;
+        }
+      }
 
       await txn.insert('fuel_state', {
         'id': 1,
         'liters': levelAfter,
-        'updated_at': nowMs,
+        'updated_at': refillCommitTs,
         'event_type': 'REFILL',
         'reference_id': refillId,
         'last_calib_ts': currentCalibTs,
@@ -455,10 +468,15 @@ class DatabaseHelper {
           if (lastCalibTs <= refill.timestamp) {
             final currentLiters = (state['liters'] as num).toDouble();
             final newLiters = (currentLiters - refill.liters).clamp(0.0, 35.0);
+            int cancelCommitTs = nowMs;
+            final existingTs = state['updated_at'] as int? ?? 0;
+            if (cancelCommitTs <= existingTs) {
+              cancelCommitTs = existingTs + 1;
+            }
             await txn.insert('fuel_state', {
               'id': 1,
               'liters': newLiters,
-              'updated_at': nowMs,
+              'updated_at': cancelCommitTs,
               'event_type': 'REFILL_CANCEL',
               'reference_id': refillId,
               'last_calib_ts': lastCalibTs,

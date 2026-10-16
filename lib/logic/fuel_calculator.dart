@@ -3,11 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/database_helper.dart';
 
 class FuelCalculator {
-  double currentLiters = 35.0;
+  double currentLiters = 0.0;
   bool lowFuelAlerted = false;
   int _lastAlertedKm = -1;
   int _lastCalibTs = 0;
   int get lastCalibTs => _lastCalibTs;
+
+  bool _isCalibrated = false;
+  /// Indique si la jauge a été calibrée par l'utilisateur ou restaurée depuis des données historiques fiables.
+  bool get isCalibrated => _isCalibrated;
 
   bool _isRefilling = false;
   bool get isRefilling => _isRefilling;
@@ -36,30 +40,64 @@ class FuelCalculator {
     }
 
     if (fuelState != null) {
-      currentLiters = ((fuelState['liters'] as num).toDouble()).clamp(0.0, _tankCapacity);
-      _lastCalibTs = (fuelState['last_calib_ts'] as int?) ?? 0;
+      final eventType = fuelState['event_type'] as String?;
+      final calibTs = (fuelState['last_calib_ts'] as int?) ?? 0;
+      if (eventType == 'UNCALIBRATED') {
+        _isCalibrated = false;
+        currentLiters = 0.0;
+        _lastCalibTs = 0;
+      } else {
+        _isCalibrated = true;
+        currentLiters = ((fuelState['liters'] as num).toDouble()).clamp(0.0, _tankCapacity);
+        _lastCalibTs = calibTs;
+
+        // Resynchronisation du cache SharedPreferences pour réparer toute divergence suite à un crash brutal
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setDouble('last_fuel_level', currentLiters);
+          if (calibTs > 0) {
+            await prefs.setInt('last_calibration_timestamp', calibTs);
+          }
+        } catch (_) {}
+      }
     } else {
       // 2. Migration contrôlée depuis SharedPreferences (installation existante v3/v4 ou première ouverture)
       final prefs = await SharedPreferences.getInstance();
       final savedFuel = prefs.getDouble('last_fuel_level');
       final legacyFuel = savedFuel == null ? prefs.getDouble('fuel_calibration') : null;
-      final initialLiters = (savedFuel ?? legacyFuel ?? 15.0).clamp(0.0, _tankCapacity);
-      _lastCalibTs = prefs.getInt('last_calibration_timestamp') ?? 0;
 
-      // Inscription durable dans fuel_state SQLite pour figer la vérité
-      try {
-        await DatabaseHelper().setFuelState(
-          liters: initialLiters,
-          eventType: 'MIGRATION_INIT',
-          lastCalibTs: _lastCalibTs,
-        );
-      } catch (_) {}
+      if (savedFuel != null || legacyFuel != null) {
+        // Préservation exacte des données utilisateur existantes
+        final initialLiters = (savedFuel ?? legacyFuel!).clamp(0.0, _tankCapacity);
+        _lastCalibTs = prefs.getInt('last_calibration_timestamp') ?? 0;
+        _isCalibrated = true;
+        currentLiters = initialLiters;
 
-      currentLiters = initialLiters;
+        // Inscription durable dans fuel_state SQLite pour figer la vérité
+        try {
+          await DatabaseHelper().setFuelState(
+            liters: initialLiters,
+            eventType: 'MIGRATION_INIT',
+            lastCalibTs: _lastCalibTs,
+          );
+        } catch (_) {}
 
-      // Miroir dans SharedPreferences si non existant
-      if (savedFuel == null) {
-        await prefs.setDouble('last_fuel_level', currentLiters);
+        if (savedFuel == null) {
+          await prefs.setDouble('last_fuel_level', currentLiters);
+        }
+      } else {
+        // Aucune donnée historique : état non calibré explicite (pas de supputation arbitraire de 35 L ou 15 L)
+        _isCalibrated = false;
+        currentLiters = 0.0;
+        _lastCalibTs = 0;
+
+        try {
+          await DatabaseHelper().setFuelState(
+            liters: 0.0,
+            eventType: 'UNCALIBRATED',
+            lastCalibTs: 0,
+          );
+        } catch (_) {}
       }
     }
     _isInitialized = true;
@@ -70,15 +108,20 @@ class FuelCalculator {
     await init();
     if (!liters.isFinite) throw ArgumentError.value(liters, 'liters');
     final previous = currentLiters;
+    final wasCalibrated = _isCalibrated;
     final calibrated = liters.clamp(0.0, _tankCapacity);
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     _lastCalibTs = nowMs;
     currentLiters = calibrated;
+    _isCalibrated = true;
 
     try {
       await _enqueueSave(calibrated, eventType: 'CALIBRATION', calibTs: nowMs);
     } catch (_) {
-      if (currentLiters == calibrated) currentLiters = previous;
+      if (currentLiters == calibrated) {
+        currentLiters = previous;
+        _isCalibrated = wasCalibrated;
+      }
       rethrow;
     }
     lowFuelAlerted = false;
@@ -143,6 +186,7 @@ class FuelCalculator {
       currentLiters = (levelAfter - _pendingConsumptionLiters).clamp(0.0, _tankCapacity);
       _pendingConsumptionLiters = 0.0;
       _isRefilling = false;
+      _isCalibrated = true;
 
       // Mise à jour finale durable si de la consommation a été déduite
       await _enqueueSave(currentLiters, eventType: 'REFILL');
@@ -260,8 +304,8 @@ class FuelCalculator {
     _saveAsync();
   }
 
-  // Km restants estimés selon la consommation configurée
-  int get kmRestants => (currentLiters / _consumptionL100 * 100).toInt();
+  // Km restants estimés selon la consommation configurée (0 si jauge non calibrée)
+  int get kmRestants => _isCalibrated ? (currentLiters / _consumptionL100 * 100).toInt() : 0;
 
   Future<void> save() async {
     await init();

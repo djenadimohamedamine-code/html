@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mimo_spark/logic/fuel_calculator.dart';
 import 'package:mimo_spark/data/fuel_refill_model.dart';
+import 'package:mimo_spark/data/database_helper.dart';
+import 'helpers/fake_database.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -9,6 +11,11 @@ void main() {
   group('MIMO SPARK V3.1 — Tests de Robustesse Carburant & SQLite Source de Vérité', () {
     setUp(() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
+      DatabaseHelper().setDatabaseForTesting(null);
+    });
+
+    tearDown(() {
+      DatabaseHelper().setDatabaseForTesting(null);
     });
 
     test('Scénario 1 : Ajout de carburant avec atomisme et persistance durable', () async {
@@ -72,6 +79,7 @@ void main() {
       // Strictement 8.7 L (pas 15 L par défaut ni 35 L)
       expect(calculator.currentLiters, closeTo(8.7, 1e-9));
       expect(calculator.kmRestants, 115);
+      expect(calculator.isCalibrated, isTrue);
     });
 
     test('Scénario 5 : Migration depuis clé legacy fuel_calibration', () async {
@@ -81,6 +89,7 @@ void main() {
       await calculator.init();
 
       expect(calculator.currentLiters, closeTo(22.0, 1e-9));
+      expect(calculator.isCalibrated, isTrue);
       // Vérification que le niveau a été migré dans last_fuel_level
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getDouble('last_fuel_level'), closeTo(22.0, 1e-9));
@@ -205,6 +214,302 @@ void main() {
 
       await Future.wait(futures);
       expect(calculator.currentLiters, closeTo(15.0, 1e-9));
+    });
+
+    test('Scénario 11 : Migration SQLite réelle v3 -> v5 avec bases préexistantes, sessions, dépenses et niveau historique', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // 1. Initialiser une base existante au schéma v3 :
+      // - Table sessions avec une session archivée
+      // - Table expenses avec dépenses archivées et active
+      // - Table rides avec trajets archivés et actif
+      fakeDb.tables['sessions']!.add({
+        'id': 1,
+        'start_timestamp': 1000,
+        'end_timestamp': 2000,
+        'total_earned': 3500.0,
+        'total_spent': 1500.0,
+        'total_km': 60.0,
+        'total_fuel': 4.5,
+      });
+
+      fakeDb.tables['expenses']!.addAll([
+        {'id': 1, 'date': '2026-10-15', 'type': 'LAVAGE', 'amount_da': 500.0, 'timestamp': 1100, 'session_id': 1},
+        {'id': 2, 'date': '2026-10-15', 'type': 'FUEL', 'amount_da': 1000.0, 'timestamp': 1200, 'session_id': 1},
+        {'id': 3, 'date': '2026-10-16', 'type': 'REPARATION', 'amount_da': 700.0, 'timestamp': 2500, 'session_id': null}, // Actif
+      ]);
+
+      // Niveau historique dans SharedPreferences
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'last_fuel_level': 18.4,
+        'last_calibration_timestamp': 1700000000,
+      });
+
+      // 2. Exécution de la migration v3 -> v5
+      await DatabaseHelper.upgradeTables(fakeDb, 3, 5);
+
+      // Vérifier que fuel_state et fuel_refills existent
+      expect(fakeDb.tables.containsKey('fuel_state'), isTrue);
+      expect(fakeDb.tables.containsKey('fuel_refills'), isTrue);
+
+      // 3. Initialisation de FuelCalculator : migration de last_fuel_level dans fuel_state
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      // Vérification de la préservation absolue des données v3
+      expect(fakeDb.tables['sessions']!.length, 1);
+      expect(fakeDb.tables['sessions']!.first['total_spent'], 1500.0);
+      expect(fakeDb.tables['sessions']!.first['total_earned'], 3500.0);
+
+      expect(fakeDb.tables['expenses']!.length, 3);
+      expect(fakeDb.tables['expenses']![0]['amount_da'], 500.0);
+      expect(fakeDb.tables['expenses']![1]['amount_da'], 1000.0);
+      expect(fakeDb.tables['expenses']![2]['amount_da'], 700.0);
+
+      // Vérification du niveau de carburant historique migré
+      expect(calculator.currentLiters, closeTo(18.4, 1e-9));
+      expect(calculator.isCalibrated, isTrue);
+
+      final stateInDb = await DatabaseHelper().getFuelState();
+      expect(stateInDb, isNotNull);
+      expect(stateInDb!['liters'], closeTo(18.4, 1e-9));
+      expect(stateInDb['event_type'], 'MIGRATION_INIT');
+      expect(stateInDb['last_calib_ts'], 1700000000);
+    });
+
+    test('Scénario 12 : Migration SQLite réelle v4 -> v5 avec bases préexistantes et pleins v4', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // 1. Initialiser une table fuel_refills v4 (sans colonne status explicite)
+      fakeDb.tables['fuel_refills']!.addAll([
+        {
+          'id': 'refill_v4_active',
+          'timestamp': 1000,
+          'date': '2026-10-15',
+          'liters': 10.0,
+          'price_per_liter': 50.0,
+          'total_amount': 500.0,
+          'level_before': 10.0,
+          'level_after': 20.0,
+          'canceled': 0,
+          'expense_id': 1,
+        },
+        {
+          'id': 'refill_v4_canceled',
+          'timestamp': 2000,
+          'date': '2026-10-15',
+          'liters': 15.0,
+          'price_per_liter': 50.0,
+          'total_amount': 750.0,
+          'level_before': 10.0,
+          'level_after': 25.0,
+          'canceled': 1, // Annulé dans v4
+          'expense_id': 2,
+        },
+      ]);
+
+      // 2. Exécution de la migration v4 -> v5
+      await DatabaseHelper.upgradeTables(fakeDb, 4, 5);
+
+      // Vérification de la transition et rétrocompatibilité des colonnes
+      final refills = await DatabaseHelper().getAllFuelRefills();
+      expect(refills.length, 2);
+
+      final active = refills.firstWhere((r) => r.id == 'refill_v4_active');
+      expect(active.isCanceled, isFalse);
+      expect(active.status, 'committed');
+
+      final canceled = refills.firstWhere((r) => r.id == 'refill_v4_canceled');
+      expect(canceled.isCanceled, isTrue);
+      expect(canceled.status, 'canceled');
+    });
+
+    test('Scénario 13 : Cycle complet Session Archivée — Plein -> Clôture Session -> Annulation Plein -> Contrôle exact des totaux', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // 1. Enregistrement d'un plein de 10 L @ 50 DA/L (500 DA) en session active
+      final refill = await DatabaseHelper().recordFuelRefill(
+        liters: 10.0,
+        pricePerLiter: 50.0,
+        levelBefore: 12.0,
+        levelAfter: 22.0,
+      );
+      expect(refill.status, 'committed');
+      expect(refill.expenseId, isNotNull);
+
+      // Ajouter aussi une autre dépense de session active (ex: Lavage 300 DA)
+      final expId = await DatabaseHelper().insertExpense('LAVAGE', 300.0);
+      expect(expId, isPositive);
+
+      // Vérifier que 2 dépenses actives existent (500 DA + 300 DA = 800 DA)
+      final activeExpensesBefore = await fakeDb.query('expenses', where: 'session_id IS NULL');
+      expect(activeExpensesBefore.length, 2);
+
+      // 2. Clôture de la session en cours
+      final closedSessionId = await DatabaseHelper().closeCurrentSession();
+      expect(closedSessionId, isNotNull);
+
+      final sessionRows = await fakeDb.query('sessions', where: 'id = ?', whereArgs: [closedSessionId]);
+      expect(sessionRows.length, 1);
+      final sessionBefore = sessionRows.first;
+      expect(sessionBefore['total_spent'], 800.0); // 500 (plein) + 300 (lavage)
+
+      // 3. Annulation du plein après archivage de la session
+      final cancelSuccess = await DatabaseHelper().cancelFuelRefill(refill.id, deductLiters: false);
+      expect(cancelSuccess, isTrue);
+
+      // Tentative de ré-annulation (test d'idempotence stricte)
+      final secondCancel = await DatabaseHelper().cancelFuelRefill(refill.id, deductLiters: false);
+      expect(secondCancel, isFalse);
+
+      // 4. Contrôles comptables et de traçabilité
+      // La dépense originale de 500 DA est préservée pour l'historique
+      final origExpense = await fakeDb.query('expenses', where: 'id = ?', whereArgs: [refill.expenseId]);
+      expect(origExpense.length, 1);
+      expect(origExpense.first['amount_da'], 500.0);
+      expect(origExpense.first['session_id'], closedSessionId);
+
+      // Une contre-passation FUEL_CANCEL (-500 DA) a été insérée
+      final cancelExpenses = await fakeDb.query(
+        'expenses',
+        where: 'session_id = ?',
+        whereArgs: [closedSessionId],
+      );
+      expect(cancelExpenses.length, 3); // Plein (500), Lavage (300), Contre-passation (-500)
+
+      final cancelRow = cancelExpenses.firstWhere((e) => e['type'] == 'FUEL_CANCEL');
+      expect(cancelRow['amount_da'], -500.0);
+
+      // Somme exacte des dépenses de la session
+      double sumExpenses = 0.0;
+      for (var e in cancelExpenses) {
+        sumExpenses += (e['amount_da'] as num).toDouble();
+      }
+      expect(sumExpenses, 300.0); // 500 - 500 + 300 = 300
+
+      // Vérification exacte de sessions.total_spent
+      final sessionAfter = (await fakeDb.query('sessions', where: 'id = ?', whereArgs: [closedSessionId])).first;
+      expect(sessionAfter['total_spent'], 300.0);
+      expect(sessionAfter['total_spent'], sumExpenses); // Égalité comptable absolue sum(expenses) == session.total_spent
+    });
+
+    test('Scénario 14 : Concurrence réelle entre Clôture de Session et Enregistrement de Plein', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // Pré-insérer une dépense active
+      await DatabaseHelper().insertExpense('PARKING', 200.0);
+
+      // Lancer simultanément closeCurrentSession et recordFuelRefill
+      final futureClose = DatabaseHelper().closeCurrentSession();
+      final futureRefill = DatabaseHelper().recordFuelRefill(
+        liters: 10.0,
+        pricePerLiter: 50.0,
+        levelBefore: 15.0,
+        levelAfter: 25.0,
+      );
+
+      final results = await Future.wait([futureClose, futureRefill]);
+      final sessionId = results[0] as int?;
+      final refill = results[1] as FuelRefill;
+
+      expect(sessionId, isNotNull);
+      expect(refill.status, 'committed');
+
+      // Aucune dépense perdue : toutes les dépenses sont soit dans la session clôturée, soit actives
+      final allExpenses = await fakeDb.query('expenses');
+      expect(allExpenses.length, 2); // PARKING et FUEL
+
+      final totalExpenseAmount = allExpenses.fold<double>(0.0, (sum, e) => sum + (e['amount_da'] as num).toDouble());
+      expect(totalExpenseAmount, 700.0);
+    });
+
+    test('Scénario 15 : Anti-écrasement chronologique OBD2 — rejet d\'une écriture OBD2 plus ancienne qu\'un plein récent', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // 1. Plein enregistré à T = 2000 avec 25.0 L
+      await DatabaseHelper().setFuelState(
+        liters: 25.0,
+        eventType: 'REFILL',
+        updatedAt: 2000,
+        lastCalibTs: 500,
+      );
+
+      final stateAfterRefill = await DatabaseHelper().getFuelState();
+      expect(stateAfterRefill!['liters'], 25.0);
+      expect(stateAfterRefill['updated_at'], 2000);
+
+      // 2. Une écriture OBD2 obsolète retardée (générée à T = 1500 avec 12.0 L) tente de persister
+      final updateSuccess = await DatabaseHelper().updateFuelLevelFromObd(12.0, timestamp: 1500);
+      expect(updateSuccess, isFalse); // Strictement rejetée !
+
+      // Le niveau durable dans fuel_state DOIT rester à 25.0 L
+      final stateAfterObd = await DatabaseHelper().getFuelState();
+      expect(stateAfterObd!['liters'], 25.0);
+      expect(stateAfterObd['updated_at'], 2000);
+      expect(stateAfterObd['event_type'], 'REFILL');
+    });
+
+    test('Scénario 16 : Reprise après crash brutal post-commit SQLite (source de vérité durable prioritaire)', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // 1. Plein enregistré dans SQLite avec succès (22.5 L)
+      await DatabaseHelper().setFuelState(
+        liters: 22.5,
+        eventType: 'REFILL',
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        lastCalibTs: 100,
+      );
+
+      // SharedPreferences contient encore une ancienne valeur (ex: crash avant mise à jour du cache)
+      SharedPreferences.setMockInitialValues(<String, Object>{'last_fuel_level': 10.0});
+
+      // 2. Redémarrage de l'application (nouvelle instance de FuelCalculator)
+      final recoveredCalculator = FuelCalculator();
+      await recoveredCalculator.init();
+
+      // SQLite est la source de vérité absolue : 22.5 L restitués (et non les 10.0 L de SharedPreferences)
+      expect(recoveredCalculator.currentLiters, closeTo(22.5, 1e-9));
+      expect(recoveredCalculator.isCalibrated, isTrue);
+
+      // Et SharedPreferences a été réparé et remis en cohérence
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getDouble('last_fuel_level'), closeTo(22.5, 1e-9));
+    });
+
+    test('Scénario 17 : Installation neuve sans données — état non calibré explicite (pas de supputation de 35 L ou 15 L)', () async {
+      final fakeDb = FakeDatabase();
+      DatabaseHelper().setDatabaseForTesting(fakeDb);
+
+      // Aucune donnée dans SQLite, aucune donnée dans SharedPreferences
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+
+      final calculator = FuelCalculator();
+      await calculator.init();
+
+      // État non calibré garanti : pas de supputation arbitraire de réservoir plein (35 L) ou par défaut (15 L)
+      expect(calculator.isCalibrated, isFalse);
+      expect(calculator.currentLiters, 0.0);
+      expect(calculator.kmRestants, 0);
+
+      final state = await DatabaseHelper().getFuelState();
+      expect(state, isNotNull);
+      expect(state!['event_type'], 'UNCALIBRATED');
+
+      // Calibrage initial par l'utilisateur (par exemple calage sur le cadran réel à 23.5 L)
+      await calculator.calibrate(23.5);
+      expect(calculator.isCalibrated, isTrue);
+      expect(calculator.currentLiters, closeTo(23.5, 1e-9));
+      expect(calculator.kmRestants, greaterThan(0));
+
+      final stateAfterCalib = await DatabaseHelper().getFuelState();
+      expect(stateAfterCalib!['event_type'], 'CALIBRATION');
+      expect(stateAfterCalib['liters'], closeTo(23.5, 1e-9));
     });
   });
 }

@@ -120,7 +120,12 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
     _fuelCalculator.init().then((_) {
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {});
+        if (!_fuelCalculator.isCalibrated) {
+          _addLog("⚠️ Jauge non calibrée : Touchez la carte carburant pour caler l'aiguille.");
+        }
+      }
     }).catchError((Object error) {
       if (mounted) _addLog('FuelCalc init: $error');
     });
@@ -1405,13 +1410,24 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
                             decoration: BoxDecoration(
-                              color: Colors.orangeAccent.withOpacity(0.18),
+                              color: _fuelCalculator.isCalibrated
+                                  ? Colors.orangeAccent.withOpacity(0.18)
+                                  : Colors.orangeAccent.withOpacity(0.35),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.0),
+                              border: Border.all(
+                                color: _fuelCalculator.isCalibrated
+                                    ? Colors.orangeAccent.withOpacity(0.4)
+                                    : Colors.orangeAccent,
+                                width: 1.0,
+                              ),
                             ),
                             child: const Text(
                               "CAL",
-                              style: TextStyle(color: Colors.orangeAccent, fontSize: 8.5, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.orangeAccent,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -1428,10 +1444,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         ),
                       ),
                       Text(
-                        '$kmRestants KM',
+                        _fuelCalculator.isCalibrated ? '$kmRestants KM' : 'À CALIBRER',
                         style: TextStyle(
-                          color: statusColor,
-                          fontSize: 24,
+                          color: _fuelCalculator.isCalibrated ? statusColor : Colors.orangeAccent,
+                          fontSize: _fuelCalculator.isCalibrated ? 24 : 19,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.5,
                         ),
@@ -1443,7 +1459,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
-                            '${fuelVal.toStringAsFixed(1)} L',
+                            _fuelCalculator.isCalibrated ? '${fuelVal.toStringAsFixed(1)} L' : '-- L',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -1453,7 +1469,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              '/ 35 L (${(fuelPercent * 100).toStringAsFixed(0)}%)',
+                              _fuelCalculator.isCalibrated
+                                  ? '/ 35 L (${(fuelPercent * 100).toStringAsFixed(0)}%)'
+                                  : '/ 35 L (Touchez pour caler)',
                               style: const TextStyle(
                                 color: Colors.white54,
                                 fontSize: 11,

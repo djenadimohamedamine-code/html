@@ -40,10 +40,12 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
     });
 
-    test('initializes at the historical default 15 L when no value exists', () async {
+    test('initializes in uncalibrated state when no value exists (no arbitrary guess)', () async {
       final calculator = FuelCalculator();
       await calculator.init();
-      expect(calculator.currentLiters, 15);
+      expect(calculator.isCalibrated, isFalse);
+      expect(calculator.currentLiters, 0.0);
+      expect(calculator.kmRestants, 0);
     });
 
     test('restores a persisted fuel level after a new instance starts', () async {
