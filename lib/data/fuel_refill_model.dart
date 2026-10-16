@@ -8,6 +8,7 @@ class FuelRefill {
   final double levelBefore;
   final double levelAfter;
   final bool isCanceled;
+  final String status;
   final int? expenseId;
 
   FuelRefill({
@@ -20,8 +21,9 @@ class FuelRefill {
     required this.levelBefore,
     required this.levelAfter,
     this.isCanceled = false,
+    String? status,
     this.expenseId,
-  });
+  }) : status = status ?? (isCanceled ? 'canceled' : 'committed');
 
   Map<String, dynamic> toMap() {
     return {
@@ -33,12 +35,16 @@ class FuelRefill {
       'total_amount': totalAmount,
       'level_before': levelBefore,
       'level_after': levelAfter,
-      'canceled': isCanceled ? 1 : 0,
+      'canceled': (isCanceled || status == 'canceled') ? 1 : 0,
+      'status': status,
       'expense_id': expenseId,
     };
   }
 
   factory FuelRefill.fromMap(Map<String, dynamic> map) {
+    final canceledInt = map['canceled'] as int? ?? 0;
+    final statusStr = map['status'] as String? ?? (canceledInt == 1 ? 'canceled' : 'committed');
+    final isCanceledBool = canceledInt == 1 || statusStr == 'canceled';
     return FuelRefill(
       id: map['id'] as String,
       timestamp: map['timestamp'] as int,
@@ -48,7 +54,8 @@ class FuelRefill {
       totalAmount: (map['total_amount'] as num).toDouble(),
       levelBefore: (map['level_before'] as num).toDouble(),
       levelAfter: (map['level_after'] as num).toDouble(),
-      isCanceled: (map['canceled'] as int? ?? 0) == 1,
+      isCanceled: isCanceledBool,
+      status: statusStr,
       expenseId: map['expense_id'] as int?,
     );
   }

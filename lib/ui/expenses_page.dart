@@ -81,12 +81,38 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
   void _addExpense(String type) async {
     final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount > 0) {
-      await DatabaseHelper().insertExpense(type, amount);
-      _amountController.clear();
-      _refresh();
-      if (mounted) Navigator.pop(context);
+    if (amount <= 0) return;
+
+    if (type == 'FUEL') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF151828),
+          title: const Text("Plein d'essence manuel", style: TextStyle(color: Colors.white)),
+          content: const Text(
+            "Attention : cet ajout enregistre uniquement une charge financière brute sans mettre à jour la jauge de carburant en litres.\n\nPour enregistrer le plein avec calcul des litres et mise à jour de la jauge, utilisez 'Faire le plein' depuis le tableau de bord.\n\nConfirmer l'ajout financier uniquement ?",
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("ANNULER", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
+              child: const Text("ENREGISTRER", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
     }
+
+    await DatabaseHelper().insertExpense(type, amount);
+    _amountController.clear();
+    _refresh();
+    if (mounted) Navigator.pop(context);
   }
 
   void _showAddExpenseDialog() {
@@ -532,32 +558,44 @@ class _ExpensesPageState extends State<ExpensesPage> {
       itemCount: _expenses.length,
       itemBuilder: (ctx, i) {
         final e = _expenses[i];
-        final isFuel = e['type'] == 'FUEL';
+        final type = e['type'] as String;
+        final isCancel = type == 'FUEL_CANCEL';
+        final isFuel = type == 'FUEL';
+        final amount = (e['amount_da'] as num).toDouble();
+
+        final Color themeColor = isCancel
+            ? Colors.amberAccent
+            : (isFuel ? Colors.orangeAccent : Colors.greenAccent);
+
+        final IconData icon = isCancel
+            ? Icons.assignment_return
+            : (isFuel ? Icons.local_gas_station : Icons.account_balance_wallet);
+
+        final String title = isCancel
+            ? "Annulation plein"
+            : (isFuel ? "Plein d'essence" : "Recharge inDrive");
+
+        final String trailingText = isCancel
+            ? "+ ${(-amount).toStringAsFixed(0)} DA"
+            : "- ${amount.toStringAsFixed(0)} DA";
+
+        final Color trailingColor = isCancel ? Colors.greenAccent : Colors.redAccent;
+
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor:
-                (isFuel ? Colors.orangeAccent : Colors.greenAccent)
-                    .withOpacity(0.15),
-            child: Icon(
-              isFuel
-                  ? Icons.local_gas_station
-                  : Icons.account_balance_wallet,
-              color:
-                  isFuel ? Colors.orangeAccent : Colors.greenAccent,
-              size: 20,
-            ),
+            backgroundColor: themeColor.withOpacity(0.15),
+            child: Icon(icon, color: themeColor, size: 20),
           ),
-          title: Text(isFuel ? "Plein d'essence" : "Recharge inDrive",
-              style: const TextStyle(color: Colors.white)),
+          title: Text(title, style: const TextStyle(color: Colors.white)),
           subtitle: Text(
             DateFormat('HH:mm').format(
                 DateTime.fromMillisecondsSinceEpoch(e['timestamp'])),
             style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
           trailing: Text(
-            "- ${e['amount_da'].toStringAsFixed(0)} DA",
-            style: const TextStyle(
-                color: Colors.redAccent,
+            trailingText,
+            style: TextStyle(
+                color: trailingColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 16),
           ),

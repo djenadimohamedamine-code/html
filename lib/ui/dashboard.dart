@@ -125,7 +125,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       if (mounted) _addLog('FuelCalc init: $error');
     });
     _startDataSync();
-    _voiceService.init().catchError((e) => _addLog("Voice init: $e"));
+    _voiceService.init().catchError((Object e) {
+      _addLog("Voice init: $e");
+      return false;
+    });
     _addLog("MIMO_OBD Démarré");
     
     // On attend 2 secondes pour activer le bouclier puis connecter l'OBD

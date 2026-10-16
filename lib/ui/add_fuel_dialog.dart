@@ -131,18 +131,11 @@ class _AddFuelDialogState extends State<AddFuelDialog> {
       _errorMessage = null;
     });
 
-    final levelBefore = _currentLiters;
-
     try {
-      // 1. Mise à jour atomique du FuelCalculator et persistance SharedPreferences
-      final levelAfter = await widget.fuelCalculator.addFuel(added);
-
-      // 2. Enregistrement transactionnel SQLite dans fuel_refills + expenses
-      await DatabaseHelper().recordFuelRefill(
-        liters: added,
+      // Mise à jour atomique SQLite (fuel_refills + expenses + fuel_state) via FuelCalculator
+      final levelAfter = await widget.fuelCalculator.addFuel(
+        added,
         pricePerLiter: price,
-        levelBefore: levelBefore,
-        levelAfter: levelAfter,
       );
 
       widget.onFuelUpdated();
@@ -170,37 +163,113 @@ class _AddFuelDialogState extends State<AddFuelDialog> {
   }
 
   Future<void> _cancelPreviousRefill(FuelRefill refill) async {
+    final hasManualCalibAfter = widget.fuelCalculator.lastCalibTs > refill.timestamp;
+    final isAmbiguous = widget.fuelCalculator.currentLiters < refill.liters;
+    bool deductLiters = false; // Décochée par défaut
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF151828),
-        title: const Text("Annuler ce plein ?", style: TextStyle(color: Colors.white)),
-        content: Text(
-          "Voulez-vous annuler le plein de ${refill.liters.toStringAsFixed(1)} L du ${refill.date} (${refill.totalAmount.toStringAsFixed(0)} DA) ?\n\nLe carburant sera déduit et la dépense sera retirée.",
-          style: const TextStyle(color: Colors.white70),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF151828),
+          title: const Text("Annuler ce plein ?", style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Plein de ${refill.liters.toStringAsFixed(1)} L du ${refill.date} (${refill.totalAmount.toStringAsFixed(0)} DA).\n\nLa dépense financière sera retirée.",
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 14),
+              if (hasManualCalibAfter)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orangeAccent, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Un calibrage manuel a été effectué après ce plein. La jauge ne sera pas modifiée.",
+                          style: TextStyle(color: Colors.orangeAccent, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (isAmbiguous)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amberAccent.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.amberAccent, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Niveau actuel (${widget.fuelCalculator.currentLiters.toStringAsFixed(1)} L) inférieur au plein. La jauge est conservée (calibrage manuel recommandé si besoin).",
+                          style: const TextStyle(color: Colors.amberAccent, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: Colors.orangeAccent,
+                  title: Text(
+                    "Corriger également la jauge (-${refill.liters.toStringAsFixed(1)} L)",
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    "Décoché par défaut : réservé si le plein n'a pas été consommé",
+                    style: TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                  value: deductLiters,
+                  onChanged: (val) {
+                    setDialogState(() {
+                      deductLiters = val ?? false;
+                    });
+                  },
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("NON", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text("ANNULER LE PLEIN", style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("NON", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("ANNULER LE PLEIN", style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
 
     if (confirm != true) return;
 
     try {
-      // 1. Déduction sécurisée dans FuelCalculator
-      await widget.fuelCalculator.cancelFuelRefill(refill.liters, levelBefore: refill.levelBefore);
-
-      // 2. Marquer dans SQLite comme annulé et supprimer la dépense associée
-      await DatabaseHelper().cancelFuelRefill(refill.id);
+      await widget.fuelCalculator.cancelFuelRefill(
+        refill.liters,
+        deductLiters: deductLiters,
+        refillId: refill.id,
+        refillTimestamp: refill.timestamp,
+      );
 
       widget.onFuelUpdated();
 
@@ -211,9 +280,14 @@ class _AddFuelDialogState extends State<AddFuelDialog> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: Colors.orangeAccent,
-          content: Text("Plein annulé avec succès.", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          content: Text(
+            deductLiters
+                ? "Plein annulé : dépense retirée et -${refill.liters.toStringAsFixed(1)} L sur la jauge."
+                : "Plein annulé : dépense retirée (jauge de carburant inchangée).",
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
         ),
       );
     } catch (e) {
