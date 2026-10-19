@@ -1,0 +1,223 @@
+/* ==========================================================================
+   FAMILY V1 BLEUE — animation broadcast
+   - aucun texte imposé
+   - logo : plaque vide par défaut
+   - background : ville à gauche
+   - cycle EXACT = 20 s
+   - 0..2 s et 18..20 s volontairement calmes pour raccord boucle
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body { font-synthesis: none; }
+.v1-canvas { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+
+/* -------------------------- LOGO / BUG V1 -------------------------- */
+
+.v1-logo-wrap {
+  position: absolute;
+  left: 64px;
+  bottom: 58px;
+  width: 860px;
+  aspect-ratio: 3 / 1;
+  opacity: 1;
+  transform: none;
+  isolation: isolate;
+}
+
+.v1-logo-img,
+.v1-logo-glow,
+.v1-logo-sheen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.v1-logo-img {
+  object-fit: contain;
+  z-index: 1;
+}
+
+/* Très légère respiration lumineuse des bords.
+   La géométrie ne bouge jamais. */
+.v1-logo-glow {
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(0, 210, 255, .12);
+  -webkit-mask: url("v1_logo_blue_blank.png") center / contain no-repeat;
+  mask: url("v1_logo_blue_blank.png") center / contain no-repeat;
+  opacity: .18;
+  animation: v1Glow 20000ms linear infinite;
+}
+
+@keyframes v1Glow {
+  0%, 10%, 90%, 100% { opacity: .14; filter: brightness(1); }
+  30% { opacity: .25; filter: brightness(1.15); }
+  52% { opacity: .16; filter: brightness(1); }
+  72% { opacity: .23; filter: brightness(1.12); }
+}
+
+/* Passage lumineux discret.
+   Deux passages espacés dans le cycle, jamais au raccord. */
+.v1-logo-sheen {
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask: url("v1_logo_blue_blank.png") center / contain no-repeat;
+  mask: url("v1_logo_blue_blank.png") center / contain no-repeat;
+}
+
+.v1-logo-sheen::before {
+  content: "";
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  width: 17%;
+  left: -25%;
+  opacity: 0;
+  transform: skewX(-18deg);
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(100,225,255,.04) 28%,
+    rgba(215,250,255,.58) 50%,
+    rgba(100,225,255,.05) 72%,
+    rgba(255,255,255,0) 100%
+  );
+  filter: blur(1.2px);
+  animation: v1Sheen 20000ms linear infinite;
+}
+
+@keyframes v1Sheen {
+  0%, 14%   { left: -25%; opacity: 0; }
+  16%       { opacity: .85; }
+  23%       { left: 108%; opacity: .85; }
+  25%, 57%  { left: 108%; opacity: 0; }
+  58%       { left: -25%; opacity: 0; }
+  60%       { opacity: .78; }
+  67%       { left: 108%; opacity: .78; }
+  69%,100%  { left: 108%; opacity: 0; }
+}
+
+/* Optionnel : le renderer peut injecter un nom d'émission.
+   Si aucun nom n'est fourni, la plaque reste totalement vide. */
+.v1-show-name {
+  position: absolute;
+  z-index: 4;
+  left: 255px;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-52%);
+  text-align: center;
+  color: #f4f8ff;
+  font-family: Arial, sans-serif;
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 1.08;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  text-shadow: 0 2px 5px rgba(0,0,0,.45), 0 0 13px rgba(0,174,255,.30);
+}
+
+.v1-show-name.is-visible { opacity: 1; }
+
+/* -------------------------- BACKGROUND V1 -------------------------- */
+
+.v1-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #06183d;
+  isolation: isolate;
+}
+
+.v1-bg-image {
+  position: absolute;
+  inset: -1.5%;
+  width: 103%;
+  height: 103%;
+  object-fit: cover;
+  transform-origin: center center;
+  animation: v1BgDrift 20000ms ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes v1BgDrift {
+  0%, 100% { transform: scale(1.010) translate3d(0,0,0); }
+  50%      { transform: scale(1.018) translate3d(-7px,2px,0); }
+}
+
+.v1-bg-softlight {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(34px);
+  opacity: .12;
+  mix-blend-mode: screen;
+}
+
+.v1-bg-softlight-a {
+  width: 36%;
+  height: 42%;
+  left: -4%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(28,180,255,.55), rgba(28,180,255,0) 68%);
+  animation: v1CityBreath 20000ms ease-in-out infinite;
+}
+
+.v1-bg-softlight-b {
+  width: 34%;
+  height: 40%;
+  right: 1%;
+  top: 6%;
+  background: radial-gradient(circle, rgba(0,120,255,.42), rgba(0,120,255,0) 70%);
+  animation: v1RightBreath 20000ms ease-in-out infinite;
+}
+
+@keyframes v1CityBreath {
+  0%,100% { opacity: .08; transform: scale(1); }
+  38% { opacity: .17; transform: scale(1.035); }
+  72% { opacity: .11; transform: scale(1.012); }
+}
+
+@keyframes v1RightBreath {
+  0%,100% { opacity: .08; transform: scale(1); }
+  52% { opacity: .15; transform: scale(1.025); }
+}
+
+.v1-bg-sweep {
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  width: 13%;
+  left: -20%;
+  opacity: 0;
+  transform: skewX(-17deg);
+  background: linear-gradient(
+    90deg,
+    rgba(80,205,255,0) 0%,
+    rgba(85,210,255,.025) 32%,
+    rgba(210,248,255,.14) 50%,
+    rgba(85,210,255,.025) 68%,
+    rgba(80,205,255,0) 100%
+  );
+  filter: blur(8px);
+  mix-blend-mode: screen;
+  animation: v1BgSweep 20000ms linear infinite;
+}
+
+@keyframes v1BgSweep {
+  0%, 30% { left: -20%; opacity: 0; }
+  32% { opacity: .60; }
+  45% { left: 110%; opacity: .60; }
+  48%, 100% { left: 110%; opacity: 0; }
+}
+
+/* Réduction animation si aperçu navigateur demande moins de mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .v1-logo-glow, .v1-logo-sheen::before, .v1-bg-image,
+  .v1-bg-softlight, .v1-bg-sweep { animation: none !important; }
+}

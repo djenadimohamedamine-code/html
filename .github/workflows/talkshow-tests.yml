@@ -1,0 +1,24 @@
+name: TalkShow regression tests
+on:
+  pull_request:
+    paths:
+      - 'TalkShow/**'
+      - '.github/workflows/talkshow-tests.yml'
+  push:
+    branches: ['fix/talkshow-migration-20261019']
+    paths:
+      - 'TalkShow/**'
+      - '.github/workflows/talkshow-tests.yml'
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s TalkShow/tests -v

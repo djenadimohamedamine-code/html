@@ -27,17 +27,22 @@
 
     function fit() {
         if (!mainTxt || !subTxt) return;
-        var baseMain = 68, baseSub = 38;
-        var maxW = 1320;
-        mainTxt.style.fontSize = baseMain + 'px';
-        subTxt.style.fontSize = baseSub + 'px';
-        var ratio = 1.0;
-        var curW = Math.max(mainTxt.offsetWidth, subTxt.offsetWidth);
-        while (curW > maxW && ratio > 0.55) {
-            ratio -= 0.05;
-            mainTxt.style.fontSize = Math.floor(baseMain * ratio) + 'px';
-            subTxt.style.fontSize = Math.floor(baseSub * ratio) + 'px';
-            curW = Math.max(mainTxt.offsetWidth, subTxt.offsetWidth);
+        // Mesure les glyphes, pas la largeur fixe des DIV block.
+        var range = document.createRange();
+        function textWidth(el) {
+            range.selectNodeContents(el);
+            return range.getBoundingClientRect().width;
+        }
+        function size(ratio) {
+            mainTxt.style.fontSize = Math.floor(68 * ratio) + 'px';
+            subTxt.style.fontSize = Math.floor(38 * ratio) + 'px';
+        }
+        size(1);
+        var ratio = 1;
+        var available = Math.min(mainTxt.clientWidth, subTxt.clientWidth);
+        while (Math.max(textWidth(mainTxt), textWidth(subTxt)) > available && ratio > 0.5) {
+            ratio = Math.max(0.5, Math.round((ratio - 0.05) * 100) / 100);
+            size(ratio);
         }
     }
 
@@ -88,3 +93,4 @@
 
 </body>
 </html>
+

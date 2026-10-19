@@ -1,17 +1,38 @@
+# ─── Exports & rendus finaux (trop lourds pour Git classique) ───
 EXPORTS/
 PREVIEW/
+
+# ─── État dynamique du panneau ───
 PANNEAU_DE_CONTROLE/queue.json
 PANNEAU_DE_CONTROLE/current_state.json
 PANNEAU_DE_CONTROLE/current_state_from_queue.json
+
+# ─── Python ───
 __pycache__/
+*.pyc
+*.pyo
+
+# ─── Frames temporaires PNG ───
+frames_*/
+tmp*/
+
+# ─── Médias (générés automatiquement) ───
 *.png
 *.jpg
 *.jpeg
 *.mp4
 *.mov
-tmp*/
-frames_*/
+*.gif
+*.zip
+
+# ─── Logs & dumps de debug ───
 *_dump.txt
+*.log
+preview_test.log
+run_dump.txt
+ui_dump.txt
+
+# ─── Scripts de debug/patch/check temporaires ───
 test_*.py
 test_*.html
 patch_*.py
@@ -21,7 +42,71 @@ measure_*.py
 crop*.py
 e2e_*.py
 update_*.py
+check_*.py
+verify_*.py
+debug_*.py
+restore_visual*.py
+extract_*.py
+apply_vis.py
+print_old_vis.py
+replace_*.py
+remove_geq.py
+keep_frames.py
+validate_frames.py
+analyze_mov_shift.py
+make_gif.py
+make_combined_gif*.py
+make_s1_gifs.py
+build_combo.py
+composite_v3.py
+screenshot_ui.py
+synthetic_test.py
+take_screenshot.py
+find_*.py
+dump_*.py
+diag_*.py
+mid_render.py
+old_render.py
+s1_render.py
+s1_check*.py
+s1_combined_render.py
+render_combined.py
+run_checks.py
+run_renders.py
+run_renders_sequentially.py
+wait_queue.py
+trigger_*.py
+auto_export*.py
+attack_f1_backend.py
+
+# ─── Fichiers texte temporaires/dumps ───
 *.txt
-*.zip
-_render_tmp.html
 !credits.txt
+
+# ─── Fichiers HTML de test ───
+tester.html
+tester_s1.html
+tester_s1_box.html
+tester_s1_comb.html
+iframe_debug.html
+combined_f1.html
+_render_tmp.html
+
+# ─── Fichiers de rendu old/backup ───
+old_generique.css
+old_template_generique.html
+old_render.py
+
+# ─── Fichiers de cache Playwright ───
+.playwright/
+
+# ─── Secrets & credentials (ne jamais versionner) ───
+.env
+*.key
+*.crt
+*.pem
+secrets/
+
+# ─── Fichier brut git orphelin ───
+git
+{
