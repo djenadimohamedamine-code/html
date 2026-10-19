@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 title TalkShow - Bug emission V2 10 MIN
-cd /d F:\spark\TalkShow
+cd /d "%~dp0"
 
 echo.
 echo ============================================================
@@ -21,6 +21,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Le MOV final 10 minutes est dans F:\spark\TalkShow\EXPORTS
+echo Le MOV final 10 minutes est dans EXPORTS
 echo.
 pause
+

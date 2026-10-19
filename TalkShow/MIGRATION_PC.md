@@ -152,15 +152,12 @@ playwright install chromium
 ```
 
 ### FFmpeg
-Chemin attendu par le renderer :
-```
-F:\TRICASTER_CONVERTER\ffmpeg\ffmpeg.exe
-F:\TRICASTER_CONVERTER\ffmpeg\ffprobe.exe
-```
-Adapte le chemin dans `render_talkshow.py` si ton nouveau PC utilise un autre emplacement.
+Installer FFmpeg et ffprobe puis ajouter leur dossier au PATH.
+Le code appelle `ffmpeg` par son nom ; aucun chemin F: n'est imposé.
+Vérifier avec `ffmpeg -version` et `ffprobe -version`.
 
-### Node.js
-Requis par Playwright. Installe depuis https://nodejs.org/
+Playwright Python fournit son runtime Node : aucune installation Node séparée
+n'est nécessaire pour ce renderer.
 
 ---
 
@@ -176,29 +173,28 @@ cd TalkShow
 # 3. Récupérer toutes les branches
 git fetch --all
 
-# 4. (Optionnel) Basculer sur la branche de migration pour vérifier
-git checkout backup/talkshow-pc-migration-2026-10-16
+# 4. Reprendre la sauvegarde dans une branche dédiée
+git switch -c work/talkshow-migration origin/backup/talkshow-pc-migration-2026-10-16
 
-# 5. Revenir sur main pour travailler
-git checkout main
+# 5. Entrer dans le sous-dossier de l'application
+cd TalkShow
 
-# 6. Installer les dépendances Python
-pip install playwright
-playwright install chromium
+# 6. Installer les dépendances
+python -m pip install playwright
+python -m playwright install chromium
 
-# 7. Lancer le serveur local
-double-clic sur PANNEAU_DE_CONTROLE\INTERFACE_WEB.bat
-# ou : python -m http.server 8730
-
-# 8. Ouvrir dans Chrome
-# http://127.0.0.1:8730/TALKSHOW.html
+# 7. Lancer le backend et ouvrir le panneau
+python render_talkshow.py --serve
+# Ne pas utiliser python -m http.server : il ne fournit pas les API de rendu.
 ```
 
 ---
 
 ## État au moment de la migration (2026-10-16)
 
-### ✅ Validé et sauvegardé sur GitHub (main)
+### ✅ Sauvegardé sur la branche de migration
+
+`main` ne contient pas tous les ajouts de cette sauvegarde.
 - Tous les templates HTML (Titre, Synthé 1, 2, 3, Titre 3, Générique, Bug)
 - Tous les CSS (synthe3.css, titre3.css glass transparent validé)
 - habillage.js, talkshow.css
@@ -220,3 +216,4 @@ double-clic sur PANNEAU_DE_CONTROLE\INTERFACE_WEB.bat
 ---
 
 *Document généré automatiquement lors de la migration — 2026-10-16*
+

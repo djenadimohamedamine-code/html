@@ -27,16 +27,22 @@
 
     function fit() {
         if (!nameTxt || !roleTxt) return;
-        var baseName = 78, baseRole = 50;
-        var maxW = 1550;
-        var curW = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
-        var ratio = 1.0;
-        
-        while (curW > maxW && ratio > 0.5) {
-            ratio -= 0.05;
-            nameTxt.style.fontSize = Math.floor(baseName * ratio) + 'px';
-            roleTxt.style.fontSize = Math.floor(baseRole * ratio) + 'px';
-            curW = Math.max(nameTxt.offsetWidth, roleTxt.offsetWidth);
+        // Mesure les glyphes, pas la largeur fixe des DIV block.
+        var range = document.createRange();
+        function textWidth(el) {
+            range.selectNodeContents(el);
+            return range.getBoundingClientRect().width;
+        }
+        function size(ratio) {
+            nameTxt.style.fontSize = Math.floor(78 * ratio) + 'px';
+            roleTxt.style.fontSize = Math.floor(50 * ratio) + 'px';
+        }
+        size(1);
+        var ratio = 1;
+        var available = Math.min(nameTxt.clientWidth, roleTxt.clientWidth);
+        while (Math.max(textWidth(nameTxt), textWidth(roleTxt)) > available && ratio > 0.5) {
+            ratio = Math.max(0.5, Math.round((ratio - 0.05) * 100) / 100);
+            size(ratio);
         }
     }
 
@@ -91,3 +97,4 @@
 
 </body>
 </html>
+

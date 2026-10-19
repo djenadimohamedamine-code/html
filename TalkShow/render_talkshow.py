@@ -124,33 +124,29 @@ DEFAULTS = {
     },
     "generique": {
         "credits": """# الإشراف العام
-أحمد بن صالح
+مالك مشكة
 
 # رئيس التحرير
-سعاد بن محمود
+ياسين موساوي
 
 # الإعداد
 كريم عبد النور
 ليلى طرابلسي
 
 # مدير التصوير
-سمير العبيدي
+كمال حاج عيسى
 
 # الكاميرات
-أمين بلقاسم
-ياسين دراجي
+رضوان بلخيري
 
 # هندسة الصوت
-وليد بن عمار
-
-# المونتاج والجرافيك
-مهدي خليل
+نبيل لعفري
 
 # الإضاءة
-طارق الماجري
+بوب
 
 # التنسيق والمتابعة
-نادية فؤاد
+جوجو
 
 # الإخراج
 محمد أمين جنادي"""
@@ -1218,7 +1214,7 @@ def run_preview_render(tpl, params, frames_max=150):
             "-f", "lavfi", "-i", bg_filter,
             "-framerate", str(FPS), "-i", pattern,
             "-filter_complex", f"[1:v]{vf_mov}[fg];[0:v][fg]overlay=format=auto:shortest=1",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv444p",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p",
             out_mp4
         ]
         run(cmd)
@@ -1599,12 +1595,17 @@ def serve(open_browser=True):
             if u.path == "/preview-render":
                 tpl = self._safe_tpl(payload.get("tpl"))
                 params = payload.get("params") or None
+                if not RUN.acquire(blocking=False):
+                    self._json(409, {"ok": False, "error": "un rendu est deja en cours"})
+                    return
                 try:
-                    # Bloquant (prend environ 15 secondes pour 150 frames)
+                    # Même verrou que les exports et la file : TMP_HTML est partagé.
                     mp4_name = run_preview_render(tpl, params, frames_max=150)
                     self._json(200, {"ok": True, "url": "/file?name=" + mp4_name})
                 except Exception as exc:
                     self._json(500, {"ok": False, "error": str(exc)})
+                finally:
+                    RUN.release()
                 return
 
             if u.path == "/queue/add":
